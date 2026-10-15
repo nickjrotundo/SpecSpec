@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SpecSpec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: instrument-style workbench. Fixed control rail on the left, plot fills the rest; stacks below 860px. */
+:root {
+  --bg: #eef1f3;
+  --panel: #ffffff;
+  --panel-2: #f6f8f9;
+  --ink: #18222b;
+  --muted: #5a6874;
+  --line: #d6dde3;
+  --accent: #0c6b88;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcecf1;
+  --plot-bg: #ffffff;
+  --grid: #e5e9ed;
+  --danger: #b4372b;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1115; --panel: #131a20; --panel-2: #10161b; --ink: #e2e8ed; --muted: #8796a3;
+    --line: #25303a; --accent: #4db2d0; --accent-ink: #061217; --accent-soft: #15303a;
+    --plot-bg: #0f151a; --grid: #1e2830; --danger: #e0705f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1115; --panel: #131a20; --panel-2: #10161b; --ink: #e2e8ed; --muted: #8796a3;
+  --line: #25303a; --accent: #4db2d0; --accent-ink: #061217; --accent-soft: #15303a;
+  --plot-bg: #0f151a; --grid: #1e2830; --danger: #e0705f; color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 14px; line-height: 1.4;
+}
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 10px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+button.icon { padding: 2px 7px; line-height: 1.2; }
+input[type="text"], input[type="number"], select, textarea {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; min-width: 0;
+}
+input[type="color"] { width: 26px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+label { cursor: pointer; }
+
+.app {
+  height: 100%; display: grid; grid-template-columns: 330px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "head head" "side main";
+}
+header.top {
+  grid-area: head; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: 0.01em; }
+.brand .bar {
+  width: 34px; height: 12px; border-radius: 2px;
+  background: linear-gradient(90deg, #6a00c8, #2d3cff, #00a8ff, #00d26a, #e8e000, #ff8a00, #e00000);
+}
+.session { margin-left: auto; display: flex; gap: 6px; }
+.hint { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.hint kbd { font-family: var(--font-mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--panel-2); }
+
+aside.side {
+  grid-area: side; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel);
+  padding: 12px max(16px, env(safe-area-inset-left, 0px)); padding-right: 14px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.sec h2 {
+  margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.drop {
+  border: 1.5px dashed var(--line); border-radius: 8px; padding: 12px; text-align: center; color: var(--muted);
+  display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--panel-2);
+}
+.drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.drop small { font-size: 11.5px; }
+
+.ds-list { display: flex; flex-direction: column; gap: 6px; }
+.ds {
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 7px; display: flex; flex-direction: column; gap: 5px; background: var(--panel-2);
+}
+.ds .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ds .name { flex: 1; min-width: 0; background: transparent; border-color: transparent; font-weight: 500; }
+.ds .name:hover { border-color: var(--line); }
+.ds .meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds select { font-size: 12px; padding: 2px 4px; }
+.ds .row select { min-width: 0; }
+.ds .laser { width: 62px; font-size: 12px; padding: 2px 4px; }
+.ds.example { border-style: dashed; }
+.tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600; }
+.empty { color: var(--muted); font-size: 12.5px; }
+
+.grid2 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px 10px; align-items: center; }
+.grid2 > label:first-child, .grid2 .lbl { color: var(--muted); font-size: 12.5px; }
+.check { display: flex; align-items: center; gap: 7px; }
+.range-row { display: flex; align-items: center; gap: 8px; }
+.range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.range-row output { font-family: var(--font-mono); font-size: 12px; width: 34px; text-align: right; }
+
+.ref-tools { display: flex; gap: 6px; margin-bottom: 8px; }
+.ref-tools input { flex: 1; }
+details.cat { border-top: 1px solid var(--line); }
+details.cat summary { cursor: pointer; padding: 6px 0; font-weight: 500; display: flex; justify-content: space-between; list-style: none; }
+#customDetails summary { justify-content: flex-start; }
+details.cat summary::-webkit-details-marker { display: none; }
+details.cat summary::before { content: "+"; font-family: var(--font-mono); color: var(--muted); width: 16px; display: inline-block; }
+details.cat[open] summary::before { content: "-"; }
+details.cat summary .n { margin-left: auto; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.ref-item { display: flex; align-items: center; gap: 7px; padding: 3px 0 3px 16px; font-size: 13px; }
+.ref-item .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1px solid var(--line); }
+.ref-item .kind { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.ref-item .del { margin-left: 4px; }
+.ref-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+.custom-form { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 16px; }
+.custom-form textarea { resize: vertical; min-height: 54px; font-family: var(--font-mono); font-size: 12px; }
+
+main.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding-block: 8px; padding-left: 12px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.toolbar .spacer { flex: 1; }
+.readout { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.menu { position: relative; }
+.menu-pop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 2px; min-width: 230px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.menu-pop button { border: none; text-align: left; background: transparent; padding: 6px 8px; }
+.menu-pop button:hover { background: var(--accent-soft); }
+.menu-pop .lab { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 6px 8px 2px; }
+#plot { flex: 1; min-height: 0; position: relative; }
+
+dialog {
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 0;
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+}
+dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
+.dlg { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dlg h3 { margin: 0; font-size: 16px; text-wrap: balance; }
+.dlg .why { font-size: 12.5px; color: var(--muted); }
+.preview { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+.preview table { border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; width: 100%; }
+.preview th, .preview td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.preview th { color: var(--muted); font-weight: 500; background: var(--panel-2); }
+.units { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.units label { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; display: flex; gap: 8px; align-items: flex-start; }
+.units label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.units small { display: block; color: var(--muted); font-size: 11.5px; }
+.ycols { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.dlg .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.dlg .actions .check { margin-right: auto; font-size: 12.5px; color: var(--muted); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+  background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 7px; font-size: 13px; max-width: calc(100vw - 32px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: "head" "main" "side"; height: auto; }
+  main.main { height: 70vh; min-height: 380px; }
+  aside.side { border-right: none; border-top: 1px solid var(--line); overflow: visible; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .hint { display: none; }
+  .units { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="bar" aria-hidden="true"></span>SpecSpec</div>
+    <div class="hint">
+      <kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp;
+      <kbd>&lt;</kbd><kbd>&gt;</kbd> pan &nbsp; <kbd>+</kbd><kbd>-</kbd> zoom &nbsp; <kbd>0</kbd> reset
+    </div>
+    <div class="session">
+      <button id="btnSaveSession" title="Save loaded spectra, colors, references, marks and view to a .json file">Save session</button>
+      <button id="btnLoadSession" title="Restore a saved .json session">Load session</button>
+      <input type="file" id="sessionInput" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <aside class="side">
+    <section class="sec">
+      <h2>Spectra</h2>
+      <div class="drop" id="drop">
+        <div>Drop CSV / TXT / JCAMP files (or a saved session) here</div>
+        <button class="primary" id="btnOpen">Open files...</button>
+        <small>Any delimiter. Units detected from headers or values; you will be asked if unclear.</small>
+        <input type="file" id="fileInput" multiple accept=".json,.csv,.txt,.tsv,.dat,.xy,.asc,.prn,.jdx,.dx,.jcamp,.spc.txt,text/plain,text/csv" hidden>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>Loaded <span id="dsCount" class="hint"></span></h2>
+      <div class="ds-list" id="dsList"></div>
+    </section>
+
+    <section class="sec">
+      <h2>Display</h2>
+      <div class="grid2">
+        <label for="axisSel">X axis</label>
+        <select id="axisSel">
+          <option value="cm">Wavenumber / Raman shift (cm-1)</option>
+          <option value="nm">Wavelength (nm)</option>
+        </select>
+        <label for="laser">Laser (nm)</label>
+        <input type="number" id="laser" value="532" step="0.1" min="100" max="3000" title="Excitation wavelength used to convert Raman shift to/from nm (references and new Raman files)">
+        <span class="lbl">Y</span>
+        <label class="check"><input type="checkbox" id="normalize"> Normalize each to max = 1</label>
+        <label for="offset">Stack</label>
+        <div class="range-row"><input type="range" id="offset" min="0" max="1.5" step="0.05" value="0"><output id="offsetOut">0</output></div>
+        <label for="lineW">Line</label>
+        <div class="range-row"><input type="range" id="lineW" min="0.5" max="3" step="0.25" value="1.25"><output id="lineWOut">1.25</output></div>
+        <span class="lbl">Extras</span>
+        <label class="check"><input type="checkbox" id="visBand" checked> Visible-light color band</label>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>Reference library <button class="icon" id="refClear" title="Hide all references">clear</button></h2>
+      <div class="ref-tools">
+        <input type="text" id="refSearch" placeholder="Search: ethanol, Hg, balmer...">
+      </div>
+      <label class="check" style="font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="refLabels" checked> Show peak labels</label>
+      <div id="refList"></div>
+      <details class="cat" id="customDetails">
+        <summary>Add custom reference</summary>
+        <form class="custom-form" id="customForm">
+          <input type="text" id="cName" placeholder="Name, e.g. My sample peaks" required>
+          <select id="cKind">
+            <option value="shift">Raman shift (cm-1)</option>
+            <option value="wn">IR / wavenumber (cm-1)</option>
+            <option value="nm">Wavelength (nm)</option>
+          </select>
+          <textarea id="cPeaks" placeholder="Positions, comma or space separated. Optional relative height after a colon: 882:1, 1052:0.4, 2928" required></textarea>
+          <button class="primary" type="submit">Add reference</button>
+        </form>
+      </details>
+      <p class="ref-note">Positions are standard literature and calibration values (emission lines in air unless noted). Stick heights are approximate relative intensities for orientation only; real intensities depend on instrument, excitation and sample state.</p>
+    </section>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <button id="tZoom" class="on" title="Drag to box-zoom">Zoom</button>
+      <button id="tPan" title="Drag to pan">Pan</button>
+      <button id="tReset" title="Show everything (0 or double-click)">Reset view</button>
+      <span class="sep"></span>
+      <button id="tAutoY" class="on" title="Y axis follows the visible data while you zoom and pan in X">Auto Y</button>
+      <button id="tReverse" title="Reverse the X axis (IR convention: high wavenumber on the left)">Reverse X</button>
+      <button id="tMark" title="Click on a trace to label the point. Click a label to remove it.">Mark peaks</button>
+      <button id="tClearMarks" title="Remove all point labels">Clear marks</button>
+      <span class="spacer"></span>
+      <span class="readout" id="readout"></span>
+      <div class="menu">
+        <button id="tExport" aria-haspopup="true" aria-expanded="false">Export</button>
+        <div class="menu-pop" id="exportMenu" hidden>
+          <div class="lab">Current view</div>
+          <button data-exp="png:view">PNG image</button>
+          <button data-exp="svg:view">SVG image</button>
+          <button data-exp="csv:view">CSV data (visible range)</button>
+          <div class="lab">Full spectrum</div>
+          <button data-exp="png:full">PNG image</button>
+          <button data-exp="svg:full">SVG image</button>
+          <button data-exp="csv:full">CSV data (all points)</button>
+        </div>
+      </div>
+    </div>
+    <div id="plot"></div>
+  </main>
+</div>
+
+<dialog id="importDlg">
+  <form class="dlg" method="dialog" id="importForm">
+    <h3 id="iTitle">Import</h3>
+    <div class="why" id="iWhy"></div>
+    <div class="preview" id="iPreview"></div>
+    <div class="grid2" id="iColsWrap">
+      <label for="iX">X column</label>
+      <select id="iX"></select>
+      <span class="lbl">Y columns</span>
+      <div class="ycols" id="iY"></div>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:6px;color:var(--muted);font-size:12.5px">X values are in:</div>
+      <div class="units" id="iUnits">
+        <label><input type="radio" name="iu" value="nm"><span>Wavelength, nm<small>UV-Vis, emission, raw spectrometer</small></span></label>
+        <label><input type="radio" name="iu" value="shift"><span>Raman shift, cm-1<small>Relative to the laser line</small></span></label>
+        <label><input type="radio" name="iu" value="wn"><span>Wavenumber, cm-1<small>IR / FTIR absorbance or transmittance</small></span></label>
+        <label><input type="radio" name="iu" value="um"><span>Wavelength, um<small>Microns, IR</small></span></label>
+      </div>
+    </div>
+    <div class="actions">
+      <label class="check" id="iAllWrap"><input type="checkbox" id="iAll"> Use for remaining files</label>
+      <button value="skip" type="submit">Skip file</button>
+      <button value="ok" type="submit" class="primary">Import</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/plotly.min.js"></script>
+<script>window.Plotly || document.write('<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"><\/script>');</script>
+<script>
+"use strict";
+
+/* ---------------- Reference library ---------------- */
+// kind: nm = wavelength (nm), wn = absolute wavenumber / IR (cm-1), shift = Raman shift (cm-1)
+// peaks: [position, relative height 0..1, label]
+const REFS = [
+  // Atomic emission
+  { id: "h-balmer", cat: "Atomic emission", name: "Hydrogen, Balmer series", kind: "nm", note: "air wavelengths", peaks: [
+    [656.279, 1, "H-alpha"], [486.135, 0.35, "H-beta"], [434.047, 0.16, "H-gamma"], [410.173, 0.09, "H-delta"],
+    [397.007, 0.06, "H-epsilon"], [388.905, 0.05, "H-zeta"], [383.539, 0.04, "H-eta"], [379.790, 0.03, "H10"], [377.063, 0.03, "H11"], [364.6, 0.02, "series limit"]] },
+  { id: "h-lyman", cat: "Atomic emission", name: "Hydrogen, Lyman series", kind: "nm", note: "vacuum UV, vacuum wavelengths", peaks: [
+    [121.567, 1, "Ly-alpha"], [102.572, 0.3, "Ly-beta"], [97.254, 0.15, "Ly-gamma"], [94.974, 0.08, "Ly-delta"], [93.780, 0.05, "Ly-epsilon"], [91.175, 0.03, "series limit"]] },
+  { id: "h-paschen", cat: "Atomic emission", name: "Hydrogen, Paschen series", kind: "nm", note: "near IR, air wavelengths", peaks: [
+    [1875.10, 1, "Pa-alpha"], [1281.81, 0.5, "Pa-beta"], [1093.82, 0.3, "Pa-gamma"], [1004.94, 0.2, "Pa-delta"], [954.62, 0.12, "Pa-epsilon"], [820.4, 0.05, "series limit"]] },
+  { id: "he", cat: "Atomic emission", name: "Helium", kind: "nm", note: "He I, air", peaks: [
+    [388.865, 0.6], [402.619, 0.1], [438.793, 0.08], [447.148, 0.5], [471.314, 0.15], [492.193, 0.2], [501.568, 0.4], [504.774, 0.08], [587.562, 1, "D3"], [667.815, 0.4], [706.519, 0.4], [728.135, 0.12]] },
+  { id: "ne", cat: "Atomic emission", name: "Neon", kind: "nm", note: "Ne I, air; common calibration lamp", peaks: [
+    [540.056, 0.3], [585.249, 0.8], [588.190, 0.3], [594.483, 0.4], [597.553, 0.2], [603.000, 0.2], [607.434, 0.3], [609.616, 0.4], [614.306, 0.5],
+    [616.359, 0.3], [621.728, 0.2], [626.650, 0.3], [630.479, 0.3], [633.443, 0.4], [638.299, 0.4], [640.225, 1], [650.653, 0.5], [653.288, 0.3],
+    [659.895, 0.3], [667.828, 0.3], [671.704, 0.3], [692.947, 0.4], [703.241, 0.6], [717.394, 0.2], [724.517, 0.4], [743.890, 0.2]] },
+  { id: "ar", cat: "Atomic emission", name: "Argon", kind: "nm", note: "Ar I, air; common calibration lamp", peaks: [
+    [696.543, 0.5], [706.722, 0.4], [714.704, 0.15], [727.294, 0.3], [738.398, 0.4], [750.387, 0.7], [751.465, 0.5], [763.511, 1], [772.376, 0.5],
+    [794.818, 0.5], [800.616, 0.5], [801.479, 0.4], [810.369, 0.6], [811.531, 0.9], [826.452, 0.4], [840.821, 0.4], [842.465, 0.5], [852.144, 0.3],
+    [866.794, 0.1], [912.297, 0.8], [922.450, 0.4]] },
+  { id: "hg", cat: "Atomic emission", name: "Mercury", kind: "nm", note: "Hg I, air; fluorescent lamps, Hg-Ar calibration", peaks: [
+    [253.652, 1], [296.728, 0.15], [302.150, 0.1], [313.155, 0.3], [334.148, 0.05], [365.015, 0.5], [404.656, 0.5], [407.783, 0.1],
+    [435.833, 0.8], [546.074, 0.9], [576.960, 0.3], [579.066, 0.3]] },
+  { id: "na", cat: "Atomic emission", name: "Sodium", kind: "nm", note: "Na I, air", peaks: [
+    [588.995, 1, "D2"], [589.592, 0.5, "D1"], [818.326, 0.12], [819.482, 0.15]] },
+
+  // Solar
+  { id: "fraunhofer", cat: "Solar", name: "Fraunhofer lines", kind: "nm", note: "solar absorption lines, air", peaks: [
+    [759.370, 0.7, "A (O2)"], [686.719, 0.6, "B (O2)"], [656.281, 0.8, "C (H-alpha)"], [627.661, 0.4, "a (O2)"], [589.592, 0.8, "D1 (Na)"],
+    [588.995, 0.9, "D2 (Na)"], [527.039, 0.5, "E2 (Fe)"], [518.362, 0.6, "b1 (Mg)"], [517.270, 0.5, "b2 (Mg)"], [486.134, 0.7, "F (H-beta)"],
+    [430.790, 0.6, "G (Fe/Ca)"], [434.047, 0.5, "G' (H-gamma)"], [396.847, 1, "H (Ca II)"], [393.366, 1, "K (Ca II)"]] },
+
+  // Lasers
+  { id: "lasers", cat: "Lasers", name: "Common laser lines", kind: "nm", note: "nominal wavelengths", peaks: [
+    [405, 1, "405 diode"], [457.9, 1, "457.9 Ar+"], [488.0, 1, "488.0 Ar+"], [514.5, 1, "514.5 Ar+"], [532.0, 1, "532 Nd:YAG x2"], [632.8, 1, "632.8 HeNe"],
+    [785, 1, "785 diode"], [830, 1, "830 diode"], [1064, 1, "1064 Nd:YAG"]] },
+
+  // Raman standards
+  { id: "r-cyclohexane", cat: "Raman standards", name: "Cyclohexane", kind: "shift", note: "ASTM E1840 calibration values", peaks: [
+    [384.1, 0.1], [426.3, 0.15], [801.3, 1], [1028.3, 0.2], [1157.6, 0.05], [1266.4, 0.2], [1444.4, 0.3], [2664.4, 0.05], [2852.9, 0.9], [2923.8, 0.7], [2938.3, 0.8]] },
+  { id: "r-toluene", cat: "Raman standards", name: "Toluene", kind: "shift", note: "ASTM E1840 calibration values", peaks: [
+    [521.7, 0.1], [786.5, 0.5], [1003.6, 1], [1030.6, 0.3], [1211.4, 0.2], [1605.1, 0.1], [2920.0, 0.3], [3052.8, 0.5]] },
+  { id: "r-polystyrene", cat: "Raman standards", name: "Polystyrene", kind: "shift", note: "ASTM E1840 calibration values", peaks: [
+    [620.9, 0.15], [795.8, 0.1], [1001.4, 1], [1031.8, 0.25], [1155.3, 0.15], [1450.5, 0.15], [1583.1, 0.08], [1602.3, 0.3], [2852.4, 0.15], [2904.5, 0.4], [3054.3, 0.8]] },
+  { id: "r-silicon", cat: "Raman standards", name: "Silicon", kind: "shift", note: "crystalline Si", peaks: [[520.7, 1, "Si 520.7"], [960, 0.05, "2TO"]] },
+  { id: "r-diamond", cat: "Raman standards", name: "Diamond", kind: "shift", peaks: [[1332, 1]] },
+  { id: "r-benzene", cat: "Raman standards", name: "Benzene", kind: "shift", peaks: [[606, 0.15], [849, 0.08], [992, 1], [1178, 0.1], [1586, 0.08], [1606, 0.1], [3062, 0.6]] },
+  { id: "r-acetonitrile", cat: "Raman standards", name: "Acetonitrile", kind: "shift", peaks: [[380, 0.3], [918, 0.5], [1376, 0.2], [2253, 0.8, "C#N"], [2942, 1]] },
+  { id: "r-sulfur", cat: "Raman standards", name: "Sulfur (S8)", kind: "shift", peaks: [[153, 0.6], [219, 1], [473, 0.8]] },
+  { id: "r-calcite", cat: "Raman standards", name: "Calcite (CaCO3)", kind: "shift", peaks: [[156, 0.3], [282, 0.35], [712, 0.15], [1086, 1], [1436, 0.05]] },
+
+  // Raman, common materials / solvents
+  { id: "r-ethanol", cat: "Raman, solvents and materials", name: "Ethanol", kind: "shift", peaks: [
+    [433, 0.2, "CCO bend"], [882, 0.6, "C-C-O str"], [1052, 0.35, "C-O str"], [1096, 0.3, "CH3 rock"], [1276, 0.15, "CH2 twist"], [1454, 0.35, "CH2/CH3 bend"],
+    [2877, 0.7, "CH3 s-str"], [2928, 1, "CH2 str"], [2974, 0.85, "CH3 as-str"], [3350, 0.15, "O-H (broad)"]] },
+  { id: "r-ipa", cat: "Raman, solvents and materials", name: "Isopropanol", kind: "shift", peaks: [
+    [489, 0.2], [819, 0.8, "C-C-O str"], [953, 0.25], [1132, 0.2], [1340, 0.1], [1453, 0.3], [2883, 0.6], [2920, 0.7], [2973, 1], [3350, 0.12, "O-H (broad)"]] },
+  { id: "r-methanol", cat: "Raman, solvents and materials", name: "Methanol", kind: "shift", peaks: [
+    [1033, 0.6, "C-O str"], [1106, 0.1], [1452, 0.3], [2835, 1, "CH3 s-str"], [2945, 0.7], [3350, 0.1, "O-H (broad)"]] },
+  { id: "r-acetone", cat: "Raman, solvents and materials", name: "Acetone", kind: "shift", peaks: [
+    [530, 0.2], [787, 0.7, "C-C str"], [1066, 0.1], [1222, 0.1], [1430, 0.3], [1710, 0.35, "C=O"], [2925, 1], [3005, 0.3]] },
+  { id: "r-water", cat: "Raman, solvents and materials", name: "Water", kind: "shift", peaks: [[1640, 0.1, "bend"], [3250, 0.8, "O-H str"], [3400, 1, "O-H str"]] },
+  { id: "r-chloroform", cat: "Raman, solvents and materials", name: "Chloroform", kind: "shift", peaks: [[262, 0.5], [366, 0.6], [668, 1], [761, 0.3], [1216, 0.1], [3019, 0.3]] },
+  { id: "r-dmso", cat: "Raman, solvents and materials", name: "DMSO", kind: "shift", peaks: [[667, 0.9], [698, 1], [953, 0.2], [1042, 0.3], [1419, 0.2], [2913, 0.9], [2995, 0.4]] },
+  { id: "r-carbon", cat: "Raman, solvents and materials", name: "Graphite / graphene", kind: "shift", note: "D and 2D shift with laser wavelength", peaks: [[1350, 0.4, "D"], [1582, 1, "G"], [1620, 0.15, "D'"], [2700, 0.7, "2D"]] },
+  { id: "r-air", cat: "Raman, solvents and materials", name: "Air (N2, O2, CO2)", kind: "shift", peaks: [[1285, 0.15, "CO2"], [1388, 0.2, "CO2"], [1556, 0.5, "O2"], [2331, 1, "N2"]] },
+
+  // IR
+  { id: "ir-water", cat: "Infrared (absorption)", name: "Water, liquid", kind: "wn", peaks: [[3400, 1, "O-H str (broad)"], [2125, 0.05, "combination"], [1640, 0.4, "bend"], [700, 0.6, "libration (broad)"]] },
+  { id: "ir-co2", cat: "Infrared (absorption)", name: "CO2, gas", kind: "wn", peaks: [[3715, 0.05], [3610, 0.04], [2349, 1, "asym str"], [667, 0.5, "bend"]] },
+  { id: "ir-ethanol", cat: "Infrared (absorption)", name: "Ethanol", kind: "wn", peaks: [
+    [3330, 0.8, "O-H (broad)"], [2974, 0.7], [2928, 0.4], [2880, 0.3], [1450, 0.25], [1380, 0.3], [1088, 0.6], [1045, 1, "C-O str"], [880, 0.5]] },
+  { id: "ir-ipa", cat: "Infrared (absorption)", name: "Isopropanol", kind: "wn", peaks: [
+    [3340, 0.8, "O-H (broad)"], [2970, 0.9], [1379, 0.4], [1160, 0.5], [1130, 0.6], [950, 0.7], [817, 0.4]] },
+  { id: "ir-methanol", cat: "Infrared (absorption)", name: "Methanol", kind: "wn", peaks: [[3330, 0.8, "O-H (broad)"], [2945, 0.5], [2833, 0.5], [1450, 0.3], [1030, 1, "C-O str"]] },
+  { id: "ir-acetone", cat: "Infrared (absorption)", name: "Acetone", kind: "wn", peaks: [[3005, 0.1], [1715, 1, "C=O"], [1420, 0.3], [1365, 0.6], [1220, 0.6], [1092, 0.1], [530, 0.2]] },
+  { id: "ir-polystyrene", cat: "Infrared (absorption)", name: "Polystyrene film", kind: "wn", note: "common FTIR check standard", peaks: [
+    [3082, 0.2], [3060, 0.4], [3026, 0.6], [2923, 0.8], [2849.5, 0.4], [1942.9, 0.1], [1601.2, 0.4], [1583.0, 0.15], [1493, 0.8], [1452, 0.7],
+    [1154.5, 0.15], [1028.3, 0.3], [906.7, 0.25], [757, 0.9], [698, 1]] },
+];
+
+const TRACE_COLORS = ["#2563eb", "#dc4a26", "#15936b", "#c2347a", "#c98a07", "#7c4ddb", "#0e98a8", "#6b7a2a", "#9a5b2e", "#4b6fa8"];
+const REF_COLORS = ["#a1662c", "#5466c4", "#278f80", "#b4466c", "#6d7d2c", "#8452ad", "#3a80b3", "#b05a26", "#5f7a90", "#9b4f9b"];
+const KIND_LABEL = { nm: "nm", um: "um", wn: "cm-1 (IR)", shift: "Raman shift" };
+
+/* ---------------- State ---------------- */
+const state = {
+  datasets: [],
+  axis: "cm",
+  laser: 532,
+  normalize: false,
+  offset: 0,
+  lineWidth: 1.25,
+  visBand: true,
+  autoY: true,
+  reverse: false,
+  markMode: false,
+  dragmode: "zoom",
+  refsOn: new Map(),     // id -> color
+  refLabels: true,
+  customRefs: [],
+  marks: [],             // {ds, i}
+  view: { x: null, y: null },
+};
+let nextId = 1;
+let colorCursor = 0;
+let refColorCursor = 0;
+
+const $ = (id) => document.getElementById(id);
+const gd = $("plot");
+
+function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+function recall(key, dflt) { try { const v = localStorage.getItem(key); return v == null ? dflt : JSON.parse(v); } catch (e) { return dflt; } }
+
+let toastTimer;
+function toast(msg, ms = 3500) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
+
+/* ---------------- Unit conversion ---------------- */
+function convFn(kind, axis, laser) {
+  const L = 1e7 / laser;
+  if (axis === "nm") {
+    if (kind === "nm") return (x) => x;
+    if (kind === "um") return (x) => x * 1000;
+    if (kind === "wn") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "shift") return (x) => { const a = L - x; return a > 0 ? 1e7 / a : NaN; };
+  } else {
+    if (kind === "nm") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "um") return (x) => (x > 0 ? 1e4 / x : NaN);
+    return (x) => x;
+  }
+}
+function axisTitle() {
+  if (state.axis === "nm") return "Wavelength (nm)";
+  const kinds = new Set(state.datasets.filter((d) => d.visible).map((d) => d.kind));
+  if (kinds.size === 1 && kinds.has("shift")) return "Raman shift (cm<sup>-1</sup>)";
+  if (kinds.size === 1 && kinds.has("wn")) return "Wavenumber (cm<sup>-1</sup>)";
+  return "Wavenumber / Raman shift (cm<sup>-1</sup>)";
+}
+
+/* ---------------- Parsing ---------------- */
+const NUM_RE = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+const DEC_COMMA_RE = /^[-+]?\d+,\d+([eE][-+]?\d+)?$/;
+
+function tokenize(line, d) {
+  let toks = d === " " ? line.trim().split(/\s+/) : line.split(d);
+  toks = toks.map((s) => s.trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim());
+  while (toks.length && toks[toks.length - 1] === "") toks.pop();
+  if (d !== ",") toks = toks.map((s) => (DEC_COMMA_RE.test(s) ? s.replace(",", ".") : s));
+  return toks;
+}
+function numericRow(toks) {
+  if (toks.length < 2) return null;
+  const out = new Array(toks.length);
+  for (let i = 0; i < toks.length; i++) {
+    if (!NUM_RE.test(toks[i])) return null;
+    out[i] = +toks[i];
+  }
+  return out;
+}
+
+function parseDelimited(text) {
+  const lines = text.split(/\r\n|\n|\r/);
+  const nonEmpty = [];
+  for (let i = 0; i < lines.length; i++) if (lines[i].trim() && !/^\s*[#%!]/.test(lines[i])) nonEmpty.push(i);
+  if (!nonEmpty.length) throw new Error("The file is empty.");
+  const step = Math.max(1, Math.floor(nonEmpty.length / 400));
+  let best = null;
+  for (const d of ["\t", ",", ";", " "]) {
+    let score = 0; const counts = {};
+    for (let k = 0; k < nonEmpty.length; k += step) {
+      const r = numericRow(tokenize(lines[nonEmpty[k]], d));
+      if (r) { score++; counts[r.length] = (counts[r.length] || 0) + 1; }
+    }
+    if (score && (!best || score > best.score)) {
+      const ncols = +Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      best = { d, score, ncols };
+    }
+  }
+  if (!best) throw new Error("No rows with two or more numeric columns were found.");
+  const { d, ncols } = best;
+  const cols = Array.from({ length: ncols }, () => []);
+  let firstData = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim() || /^\s*[#%!]/.test(line)) continue;
+    const r = numericRow(tokenize(line, d));
+    if (!r || r.length < ncols) continue;
+    if (firstData < 0) firstData = i;
+    for (let c = 0; c < ncols; c++) cols[c].push(r[c]);
+  }
+  const pre = lines.slice(0, firstData).filter((l) => l.trim());
+  let names = null;
+  for (let k = pre.length - 1; k >= 0; k--) {
+    const t = tokenize(pre[k].replace(/^\s*[#%!]+\s*/, ""), d);
+    if (t.length >= ncols) { names = t.slice(0, ncols); break; }
+    if (t.length >= 2) break;
+  }
+  if (!names) names = Array.from({ length: ncols }, (_, i) => (i === 0 ? "X" : "Column " + (i + 1)));
+  names = names.map((n, i) => n || "Column " + (i + 1));
+  return {
+    cols: cols.map((c) => Float64Array.from(c)),
+    names,
+    preamble: pre.join("\n"),
+    rows: cols[0].length,
+  };
+}
+
+/* JCAMP-DX, including ASDF compressed (SQZ / DIF / DUP) XYDATA */
+function decodeAsdfLine(line) {
+  const toks = [];
+  let i = 0; const n = line.length;
+  const SQZ = "@ABCDEFGHI", SQZN = "abcdefghi", DIF = "%JKLMNOPQR", DIFN = "jklmnopqr", DUP = "STUVWXYZs";
+  while (i < n) {
+    const c = line[i];
+    if (c === " " || c === "," || c === "\t" || c === ";") { i++; continue; }
+    if (c === "?") { toks.push({ t: "abs", v: NaN }); i++; continue; }
+    let j;
+    if (c === "+" || c === "-" || c === "." || (c >= "0" && c <= "9")) {
+      j = i + 1;
+      while (j < n && ((line[j] >= "0" && line[j] <= "9") || line[j] === ".")) j++;
+      if (j < n && (line[j] === "E" || line[j] === "e") && (line[j + 1] === "+" || line[j + 1] === "-")) {
+        j += 2; while (j < n && line[j] >= "0" && line[j] <= "9") j++;
+      }
+      toks.push({ t: "abs", v: parseFloat(line.slice(i, j)) }); i = j; continue;
+    }
+    let k;
+    const readDigits = (first) => { j = i + 1; while (j < n && ((line[j] >= "0" && line[j] <= "9") || line[j] === ".")) j++; return parseFloat(first + line.slice(i + 1, j)); };
+    if ((k = SQZ.indexOf(c)) >= 0) { toks.push({ t: "abs", v: readDigits(String(k)) }); i = j; continue; }
+    if ((k = SQZN.indexOf(c)) >= 0) { toks.push({ t: "abs", v: -readDigits(String(k + 1)) }); i = j; continue; }
+    if ((k = DIF.indexOf(c)) >= 0) { toks.push({ t: "dif", v: readDigits(String(k)) }); i = j; continue; }
+    if ((k = DIFN.indexOf(c)) >= 0) { toks.push({ t: "dif", v: -readDigits(String(k + 1)) }); i = j; continue; }
+    if ((k = DUP.indexOf(c)) >= 0) { toks.push({ t: "dup", v: readDigits(String(k + 1)) }); i = j; continue; }
+    i++;
+  }
+  const vals = []; let lastT = null; let lastDif = 0;
+  for (const tk of toks) {
+    if (tk.t === "abs") { vals.push(tk.v); lastT = "abs"; }
+    else if (tk.t === "dif") { vals.push((vals.length ? vals[vals.length - 1] : 0) + tk.v); lastT = "dif"; lastDif = tk.v; }
+    else if (tk.t === "dup") {
+      for (let r = 1; r < tk.v; r++) vals.push(lastT === "dif" ? vals[vals.length - 1] + lastDif : vals[vals.length - 1]);
+    }
+  }
+  return { vals, endsDif: lastT === "dif" };
+}
+
+function parseJcamp(text) {
+  const lines = text.split(/\r\n|\n|\r/);
+  const v = {}; let mode = null; const blocks = []; let pairs = [];
+  for (let raw of lines) {
+    const line = raw.replace(/\$\$.*$/, "");
+    const m = line.match(/^\s*##\s*([^=]+)=(.*)$/);
+    if (m) {
+      const key = m[1].toUpperCase().replace(/[\s\-\/_]/g, "");
+      if (mode && (blocks.length || pairs.length)) { if (key === "END") break; }
+      mode = null;
+      if (key === "XYDATA" && /X\+\+\(Y\.\.Y\)/i.test(m[2])) mode = "xydata";
+      else if (key === "XYPOINTS" || key === "PEAKTABLE" || key === "XYDATA") mode = "pairs";
+      else if (!(key in v)) v[key] = m[2].trim();
+      continue;
+    }
+    if (!mode || !line.trim()) continue;
+    if (mode === "xydata") blocks.push(decodeAsdfLine(line));
+    else for (const t of line.split(/[\s,;]+/)) if (t !== "" && NUM_RE.test(t)) pairs.push(+t);
+  }
+  const xf = parseFloat(v.XFACTOR) || 1, yf = parseFloat(v.YFACTOR) || 1;
+  let xs = [], ys = [];
+  if (blocks.length) {
+    const firstx = parseFloat(v.FIRSTX), lastx = parseFloat(v.LASTX), np = parseInt(v.NPOINTS, 10);
+    const lineYs = []; let prevDif = false;
+    for (const b of blocks) {
+      if (!b.vals.length) continue;
+      let y = b.vals.slice(1), skip = 0;
+      if (prevDif && y.length && lineYs.length) { y = y.slice(1); skip = 1; }
+      lineYs.push({ x: b.vals[0] * xf, y, skip });
+      prevDif = b.endsDif;
+    }
+    let dx;
+    if (isFinite(firstx) && isFinite(lastx) && np > 1) dx = (lastx - firstx) / (np - 1);
+    else if (lineYs.length > 1) dx = (lineYs[1].x - lineYs[0].x) / lineYs[0].y.length;
+    else dx = 1;
+    for (const L of lineYs) for (let j = 0; j < L.y.length; j++) { xs.push(L.x + (j + L.skip) * dx); ys.push(L.y[j] * yf); }
+  } else if (pairs.length >= 4) {
+    for (let i = 0; i + 1 < pairs.length; i += 2) { xs.push(pairs[i] * xf); ys.push(pairs[i + 1] * yf); }
+  } else throw new Error("No spectral data block found in this JCAMP-DX file.");
+  const xu = (v.XUNITS || "").toUpperCase();
+  const dt = ((v.DATATYPE || "") + " " + (v.DATACLASS || "")).toUpperCase();
+  let kind = null;
+  if (/1\/CM|CM-1|CM\^-1|WAVENUMBER/.test(xu)) kind = /RAMAN/.test(dt) ? "shift" : "wn";
+  else if (/NANOMET|^NM/.test(xu)) kind = "nm";
+  else if (/MICROM|MICRON|^UM/.test(xu)) kind = "um";
+  return {
+    cols: [Float64Array.from(xs), Float64Array.from(ys)],
+    names: [v.XUNITS || "X", v.YUNITS || "Y"],
+    preamble: "", rows: xs.length, title: v.TITLE, jcampKind: kind,
+  };
+}
+
+/* ---------------- Unit detection ---------------- */
+function detectUnit(xs, header, preamble) {
+  const h = (header || "").toLowerCase();
+  const pre = (preamble || "").split("\n").filter((l) => /x.?unit|x.?axis|abscissa/i.test(l)).join(" ").toLowerCase();
+  const t = h + " " + pre;
+  let min = Infinity, max = -Infinity;
+  for (const x of xs) { if (x < min) min = x; if (x > max) max = x; }
+  const range = `${fmt(min)} to ${fmt(max)}`;
+  if (/raman|shift/.test(t)) return { kind: "shift", confident: true, why: `Header mentions Raman shift. Range ${range}.` };
+  if (/cm\s*\^?\s*[-−]\s*1|cm-1|1\s*\/\s*cm|wave\s*number|\bcm\b/.test(t))
+    return { kind: min < 350 ? "shift" : "wn", confident: true, why: `Header says cm-1. Range ${range}.` };
+  if (/µm|\bum\b|micron|micromet/.test(t)) return { kind: "um", confident: true, why: `Header says microns. Range ${range}.` };
+  if (/\bnm\b|nanomet|wavelength|lambda/.test(t)) return { kind: "nm", confident: true, why: `Header says nm / wavelength. Range ${range}.` };
+  if (max <= 30 && min > 0) return { kind: "um", confident: false, why: `Values run ${range}, which looks like microns.` };
+  if (max > 4500) return { kind: "wn", confident: true, why: `Values reach ${fmt(max)}, which only makes sense as cm-1.` };
+  if (min < 150 && max > 400) return { kind: "shift", confident: true, why: `Values start at ${fmt(min)}, which fits Raman shift (cm-1) and not nm.` };
+  if (max > 3200) return { kind: min < 350 ? "shift" : "wn", confident: true, why: `Values reach ${fmt(max)}, typical of cm-1.` };
+  if (max <= 1100) return { kind: "nm", confident: false, why: `Values run ${range}. That fits UV-Vis wavelengths (nm), but could also be a Raman fingerprint region (cm-1).` };
+  if (min >= 800) return { kind: "nm", confident: false, why: `Values run ${range}. That fits near-IR wavelengths (nm), but could also be cm-1.` };
+  return { kind: min < 350 ? "shift" : "wn", confident: false, why: `Values run ${range}. That most likely is cm-1, but nm is possible.` };
+}
+function fmt(v) { return Math.abs(v) >= 100 ? v.toFixed(1) : +v.toPrecision(4) + ""; }
+
+/* ---------------- Import flow ---------------- */
+let batchChoice = null;
+async function importFiles(files) {
+  batchChoice = null;
+  const list = Array.from(files);
+  for (let fi = 0; fi < list.length; fi++) {
+    const f = list[fi];
+    if (/\.json$/i.test(f.name)) { await loadSession(f); continue; }
+    let parsed;
+    try {
+      const text = await f.text();
+      const isJ = /\.(jdx|dx|jcamp)$/i.test(f.name) || /^\s*##/.test(text.slice(0, 200));
+      parsed = isJ ? parseJcamp(text) : parseDelimited(text);
+    } catch (e) {
+      toast(`${f.name}: ${e.message}`, 6000); continue;
+    }
+    if (parsed.rows < 2) { toast(`${f.name}: fewer than two data rows.`, 6000); continue; }
+    const base = (parsed.title || f.name).replace(/\.[^.]+$/, "");
+    const det = parsed.jcampKind
+      ? { kind: parsed.jcampKind, confident: true, why: "Units read from the JCAMP-DX header." }
+      : detectUnit(parsed.cols[0], parsed.names[0], parsed.preamble);
+    let choice;
+    const needAsk = !det.confident || parsed.cols.length > 2;
+    if (needAsk && batchChoice) choice = { x: 0, ys: [1], kind: batchChoice.kind };
+    else if (needAsk) choice = await askImport(f.name, parsed, det, list.length - fi - 1);
+    else choice = { x: 0, ys: [1], kind: det.kind };
+    if (!choice) continue;
+    addFromParsed(base, parsed, choice);
+    if (!needAsk) toast(`${base}: ${parsed.rows.toLocaleString()} points, ${KIND_LABEL[choice.kind]}. ${det.why}`, 5000);
+  }
+}
+
+function askImport(fname, parsed, det, remaining) {
+  return new Promise((resolve) => {
+    const dlg = $("importDlg");
+    $("iTitle").textContent = `Import ${fname}`;
+    $("iWhy").textContent = (det.confident ? "" : "Not sure about the X units. ") + det.why + ` ${parsed.rows.toLocaleString()} rows.`;
+    const ncol = parsed.cols.length;
+    const nPrev = Math.min(6, parsed.rows);
+    let html = "<table><tr>" + parsed.names.map((n) => `<th>${esc(n)}</th>`).join("") + "</tr>";
+    for (let r = 0; r < nPrev; r++) html += "<tr>" + parsed.cols.map((c) => `<td>${c[r]}</td>`).join("") + "</tr>";
+    $("iPreview").innerHTML = html + "</table>";
+    $("iColsWrap").hidden = ncol <= 2;
+    $("iX").innerHTML = parsed.names.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join("");
+    $("iY").innerHTML = parsed.names.map((n, i) => `<label class="check"><input type="checkbox" value="${i}" ${i === 1 ? "checked" : ""}>${esc(n)}</label>`).join("");
+    for (const r of dlg.querySelectorAll('input[name="iu"]')) r.checked = r.value === det.kind;
+    $("iAllWrap").hidden = remaining === 0;
+    $("iAll").checked = false;
+    const onClose = () => {
+      dlg.removeEventListener("close", onClose);
+      if (dlg.returnValue !== "ok") return resolve(null);
+      const x = +$("iX").value;
+      let ys = [...$("iY").querySelectorAll("input:checked")].map((c) => +c.value).filter((i) => i !== x);
+      if (ncol <= 2) ys = [x === 0 ? 1 : 0];
+      if (!ys.length) { toast("No Y column selected; file skipped."); return resolve(null); }
+      const kind = dlg.querySelector('input[name="iu"]:checked')?.value || det.kind;
+      if ($("iAll").checked) batchChoice = { kind };
+      resolve({ x, ys, kind });
+    };
+    dlg.returnValue = "";
+    dlg.addEventListener("close", onClose);
+    dlg.showModal();
+  });
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+function addFromParsed(base, parsed, choice) {
+  const hadUser = state.datasets.some((d) => !d.example);
+  if (!hadUser) {
+    const ex = state.datasets.filter((d) => d.example).map((d) => d.id);
+    state.datasets = state.datasets.filter((d) => !d.example);
+    state.marks = state.marks.filter((m) => !ex.includes(m.ds));
+    if (ex.length) { state.refsOn.clear(); refColorCursor = 0; }
+  }
+  for (const yi of choice.ys) {
+    const name = choice.ys.length > 1 ? `${base}: ${parsed.names[yi]}` : base;
+    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind });
+  }
+  if (!hadUser) {
+    state.axis = choice.kind === "nm" ? "nm" : "cm";
+    state.reverse = choice.kind === "wn" || choice.kind === "um";
+    syncControls();
+  }
+  state.view = { x: null, y: null };
+  renderAll();
+}
+
+function addDataset({ name, x, y, kind, example = false }) {
+  const ds = {
+    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true,
+    color: TRACE_COLORS[colorCursor++ % TRACE_COLORS.length],
+    laser: state.laser,
+  };
+  applyYMode(ds);
+  state.datasets.push(ds);
+  return ds;
+}
+
+// ymode: none | flip (mirror within its own range) | t2a (transmittance -> absorbance) | a2t (absorbance -> %T)
+function applyYMode(ds) {
+  const r = ds.yRaw, n = r.length, y = new Float64Array(n);
+  let lo = Infinity, hi = -Infinity;
+  for (const v of r) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (ds.ymode === "flip") for (let i = 0; i < n; i++) y[i] = lo + hi - r[i];
+  else if (ds.ymode === "t2a") {
+    const pct = hi > 1.5;
+    for (let i = 0; i < n; i++) { const t = pct ? r[i] / 100 : r[i]; y[i] = t > 0 ? -Math.log10(t) : NaN; }
+  } else if (ds.ymode === "a2t") for (let i = 0; i < n; i++) y[i] = 100 * Math.pow(10, -r[i]);
+  else y.set(r);
+  let ymax = -Infinity;
+  for (const v of y) if (v > ymax) ymax = v;
+  ds.y = y;
+  ds.ymax = ymax > 0 ? ymax : 1;
+}
+
+/* ---------------- Plot building ---------------- */
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function plotted(ds, visIndex, unit) {
+  const f = convFn(ds.kind, state.axis, ds.kind === "shift" ? ds.laser : state.laser);
+  const n = ds.x.length;
+  const px = new Float64Array(n), py = new Float64Array(n);
+  const s = state.normalize ? 1 / ds.ymax : 1;
+  const off = visIndex * state.offset * unit;
+  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = ds.y[i] * s + off; }
+  return { px, py };
+}
+
+let cache = new Map();
+function computeAll() {
+  cache = new Map();
+  const vis = state.datasets.filter((d) => d.visible);
+  const unit = state.normalize ? 1 : Math.max(1e-12, ...vis.map((d) => d.ymax));
+  vis.forEach((d, i) => cache.set(d.id, plotted(d, i, unit)));
+}
+
+function fullXExtent() {
+  let lo = Infinity, hi = -Infinity;
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const c = cache.get(d.id);
+    for (const v of c.px) if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  }
+  if (lo === Infinity) {
+    for (const r of activeRefs()) {
+      const f = convFn(r.kind, state.axis, state.laser);
+      for (const p of r.peaks) { const v = f(p[0]); if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    }
+    if (lo !== Infinity) { const pad = Math.max((hi - lo) * 0.08, state.axis === "nm" ? 10 : 50); return [lo - pad, hi + pad]; }
+    return state.axis === "nm" ? [350, 800] : [100, 3600];
+  }
+  return [lo, hi];
+}
+
+function yExtent(xr) {
+  let lo = Infinity, hi = -Infinity;
+  const [a, b] = xr || [-Infinity, Infinity];
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const { px, py } = cache.get(d.id);
+    for (let i = 0; i < px.length; i++) {
+      const x = px[i];
+      if (x >= a && x <= b) { const y = py[i]; if (y < lo) lo = y; if (y > hi) hi = y; }
+    }
+  }
+  if (lo === Infinity) return [0, 1];
+  if (lo === hi) { lo -= 0.5; hi += 0.5; }
+  const pad = (hi - lo) * 0.06;
+  return [lo - pad, hi + pad];
+}
+
+function activeRefs() {
+  const all = [...REFS, ...state.customRefs];
+  return all.filter((r) => state.refsOn.has(r.id)).map((r) => ({ ...r, color: state.refsOn.get(r.id) }));
+}
+
+function wlColor(w) {
+  let r = 0, g = 0, b = 0;
+  if (w >= 380 && w < 440) { r = -(w - 440) / 60; b = 1; }
+  else if (w >= 440 && w < 490) { g = (w - 440) / 50; b = 1; }
+  else if (w >= 490 && w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w >= 510 && w < 580) { r = (w - 510) / 70; g = 1; }
+  else if (w >= 580 && w < 645) { r = 1; g = -(w - 645) / 65; }
+  else if (w >= 645 && w <= 780) { r = 1; }
+  let f = 1;
+  if (w < 420) f = 0.3 + 0.7 * (w - 380) / 40; else if (w > 700) f = 0.3 + 0.7 * (780 - w) / 80;
+  if (w < 380 || w > 780) f = 0;
+  const c = (v) => Math.round(255 * Math.pow(v * f, 0.8));
+  return [c(r), c(g), c(b)];
+}
+const bandCache = {};
+function bandImage(axis, reversed) {
+  const key = axis + reversed;
+  if (bandCache[key]) return bandCache[key];
+  const W = 600, cv = document.createElement("canvas"); cv.width = W; cv.height = 1;
+  const ctx = cv.getContext("2d"); const img = ctx.createImageData(W, 1);
+  const lo = axis === "nm" ? 380 : 1e7 / 780, hi = axis === "nm" ? 780 : 1e7 / 380;
+  for (let p = 0; p < W; p++) {
+    const t = (p + 0.5) / W;
+    const v = reversed ? hi - t * (hi - lo) : lo + t * (hi - lo);
+    const wl = axis === "nm" ? v : 1e7 / v;
+    const [r, g, b] = wlColor(wl);
+    img.data.set([r, g, b, 255], p * 4);
+  }
+  ctx.putImageData(img, 0, 0);
+  return (bandCache[key] = { src: cv.toDataURL(), lo, hi });
+}
+
+function buildFigure(xRange, yRange) {
+  const ink = cssVar("--ink"), muted = cssVar("--muted"), grid = cssVar("--grid"), plotBg = cssVar("--plot-bg"), panel = cssVar("--panel"), line = cssVar("--line");
+  const font = cssVar("--font-ui"), mono = cssVar("--font-mono");
+  const traces = [];
+  const xdec = state.axis === "nm" ? 3 : 2;
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const c = cache.get(d.id);
+    traces.push({
+      type: "scattergl", mode: "lines", x: c.px, y: c.py, name: d.name, meta: d.id,
+      line: { color: d.color, width: state.lineWidth },
+      hovertemplate: `%{x:.${xdec}f}, %{y:.5g}<extra>${esc(d.name)}</extra>`,
+    });
+  }
+  const annotations = [];
+  for (const r of activeRefs()) {
+    const f = convFn(r.kind, state.axis, state.laser);
+    const xs = [], ys = [], tx = [], ty = [], ht = [];
+    for (const p of r.peaks) {
+      const x = f(p[0]); if (!(x === x)) continue;
+      const h = 0.06 + 0.82 * (p[1] ?? 0.5);
+      xs.push(x, x, null); ys.push(0, h, null);
+      tx.push(x); ty.push(h);
+      const unit = r.kind === "nm" ? "nm" : "cm-1";
+      ht.push(`<b>${esc(r.name)}</b><br>${p[0]} ${unit}${r.kind === "shift" ? " shift" : ""}${p[2] ? " - " + esc(p[2]) : ""}` +
+        (state.axis === "nm" && r.kind !== "nm" ? `<br>= ${x.toFixed(2)} nm` : "") +
+        (state.axis === "cm" && r.kind === "nm" ? `<br>= ${x.toFixed(1)} cm-1` : ""));
+      if (state.refLabels) {
+        annotations.push({
+          x, y: h, xref: "x", yref: "y2", yanchor: "bottom", showarrow: false, textangle: -90,
+          text: p[2] ? `${esc(p[2])}` : `${+x.toFixed(state.axis === "nm" ? 2 : 1)}`,
+          font: { size: 10, color: r.color, family: mono },
+        });
+      }
+    }
+    traces.push({ type: "scatter", mode: "lines", x: xs, y: ys, yaxis: "y2", line: { color: r.color, width: 1.3 }, opacity: 0.85, hoverinfo: "skip", showlegend: false, name: r.name });
+    traces.push({ type: "scatter", mode: "markers", x: tx, y: ty, yaxis: "y2", marker: { color: r.color, size: 5, symbol: "diamond" }, name: r.name, text: ht, hovertemplate: "%{text}<extra></extra>", showlegend: true, legendgroup: "ref" + r.id });
+  }
+  state.marks.forEach((m, k) => {
+    const d = state.datasets.find((q) => q.id === m.ds);
+    if (!d || !d.visible) return;
+    const c = cache.get(d.id); const x = c.px[m.i], y = c.py[m.i];
+    if (!(x === x)) return;
+    annotations.push({
+      x, y, xref: "x", yref: "y", text: x.toFixed(state.axis === "nm" ? 2 : 1), showarrow: true, arrowhead: 0, arrowcolor: d.color, ax: 0, ay: -28,
+      font: { size: 11, color: ink, family: mono }, bgcolor: panel, bordercolor: d.color, borderwidth: 1, borderpad: 2, captureevents: true, name: "mark:" + k,
+    });
+  });
+  const images = [];
+  if (state.visBand) {
+    const b = bandImage(state.axis, state.reverse);
+    images.push({ source: b.src, xref: "x", yref: "paper", x: state.reverse ? b.hi : b.lo, y: 0, sizex: b.hi - b.lo, sizey: 0.022, xanchor: "left", yanchor: "bottom", sizing: "stretch", layer: "below", opacity: 0.9 });
+  }
+  const xr = state.reverse ? [xRange[1], xRange[0]] : xRange;
+  const layout = {
+    paper_bgcolor: panel, plot_bgcolor: plotBg, font: { color: ink, family: font, size: 12 },
+    margin: { l: 64, r: 18, t: 16, b: 50 },
+    dragmode: state.dragmode, hovermode: "closest",
+    hoverlabel: { font: { family: mono, size: 12 } },
+    showlegend: true, legend: { orientation: "h", x: 0, y: 1, yanchor: "bottom", bgcolor: "rgba(0,0,0,0)", font: { size: 11 } },
+    xaxis: { range: xr, title: { text: axisTitle(), standoff: 8 }, gridcolor: grid, linecolor: line, zeroline: false, tickfont: { family: mono }, showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: muted, spikedash: "dot", ticks: "outside", tickcolor: line, autorange: false },
+    yaxis: { range: yRange, title: { text: state.normalize ? "Normalized intensity" : "Intensity", standoff: 6 }, gridcolor: grid, linecolor: line, zeroline: false, tickfont: { family: mono }, fixedrange: state.autoY, exponentformat: "SI", autorange: false },
+    yaxis2: { overlaying: "y", range: [0, 1.02], visible: false, fixedrange: true },
+    annotations, images,
+  };
+  return { traces, layout };
+}
+
+const config = {
+  scrollZoom: true, displaylogo: false, responsive: true, doubleClick: false,
+  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage"],
+};
+
+let internal = false;
+function currentRanges() {
+  const x = state.view.x || fullXExtent();
+  const y = state.autoY ? yExtent(x) : (state.view.y || yExtent(null));
+  return { x, y };
+}
+
+function renderPlot() {
+  computeAll();
+  const { x, y } = currentRanges();
+  const { traces, layout } = buildFigure(x, y);
+  internal = true;
+  Plotly.react(gd, traces, layout, config).then(() => { internal = false; updateReadout(); });
+}
+function renderAll() { renderDatasets(); renderRefs(); renderPlot(); }
+
+function setXRange(xr) {
+  state.view.x = xr;
+  const upd = { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr };
+  if (state.autoY) upd["yaxis.range"] = yExtent(xr);
+  internal = true;
+  Plotly.relayout(gd, upd).then(() => { internal = false; updateReadout(); });
+}
+
+function updateReadout() {
+  const x = state.view.x || fullXExtent();
+  const u = state.axis === "nm" ? "nm" : "cm-1";
+  $("readout").textContent = `${fmt(x[0])} to ${fmt(x[1])} ${u}  (span ${fmt(x[1] - x[0])})`;
+}
+
+function attachPlotEvents() {
+  gd.on("plotly_relayout", (ev) => {
+    if (internal) return;
+    const keys = Object.keys(ev);
+    const xs = keys.some((k) => k.startsWith("xaxis")), ysk = keys.some((k) => k.startsWith("yaxis."));
+    if (!xs && !ysk) return;
+    if (ev["xaxis.autorange"] || ev["yaxis.autorange"]) { resetView(); return; }
+    const xr = gd.layout.xaxis.range.slice().map(Number).sort((a, b) => a - b);
+    state.view.x = xr;
+    if (state.autoY && xs) {
+      internal = true;
+      Plotly.relayout(gd, { "yaxis.range": yExtent(xr) }).then(() => { internal = false; });
+    } else if (!state.autoY) {
+      state.view.y = gd.layout.yaxis.range.slice().map(Number);
+    }
+    updateReadout();
+  });
+  gd.on("plotly_click", (ev) => {
+    if (!state.markMode || !ev.points?.length) return;
+    const p = ev.points.find((q) => q.data.type === "scattergl");
+    if (!p) return;
+    state.marks.push({ ds: p.data.meta, i: p.pointIndex ?? p.pointNumber });
+    renderPlot();
+  });
+  gd.on("plotly_clickannotation", (ev) => {
+    const name = ev.annotation?.name || "";
+    if (!name.startsWith("mark:")) return;
+    state.marks.splice(+name.slice(5), 1);
+    renderPlot();
+  });
+  gd.addEventListener("dblclick", () => resetView());
+}
+
+function resetView() { state.view = { x: null, y: null }; renderPlot(); }
+
+/* ---------------- Sidebar rendering ---------------- */
+function renderDatasets() {
+  const el = $("dsList");
+  $("dsCount").textContent = state.datasets.length ? `${state.datasets.length}` : "";
+  if (!state.datasets.length) { el.innerHTML = `<div class="empty">No spectra loaded. Open a file or pick references below.</div>`; return; }
+  el.innerHTML = "";
+  for (const d of state.datasets) {
+    const row = document.createElement("div");
+    row.className = "ds" + (d.example ? " example" : "");
+    row.innerHTML = `
+      <div class="row">
+        <input type="checkbox" class="vis" title="Show / hide" ${d.visible ? "checked" : ""}>
+        <input type="color" class="col" value="${d.color}" title="Trace color">
+        <input type="text" class="name" value="${esc(d.name)}" title="Rename">
+        <button class="icon rm" title="Remove">x</button>
+      </div>
+      <div class="row">
+        <select class="kind" title="X units of this file">
+          <option value="nm">nm</option><option value="shift">Raman shift cm-1</option><option value="wn">cm-1 (IR)</option><option value="um">um</option>
+        </select>
+        <select class="ymode" title="Y transform. Flip mirrors the trace vertically; T to A converts transmittance (fraction or %) to absorbance; A to %T does the reverse.">
+          <option value="none">Y as is</option><option value="flip">Flip Y</option><option value="t2a">T to A</option><option value="a2t">A to %T</option>
+        </select>
+        ${d.kind === "shift" ? `<input type="number" class="laser" step="0.1" value="${d.laser}" title="Laser wavelength (nm) for this Raman spectrum">` : ""}
+        <span class="meta">${d.example ? '<span class="tag">example</span> ' : ""}${d.x.length.toLocaleString()} pts</span>
+      </div>`;
+    row.querySelector(".kind").value = d.kind;
+    row.querySelector(".ymode").value = d.ymode;
+    row.querySelector(".ymode").onchange = (e) => { d.ymode = e.target.value; applyYMode(d); state.view.y = null; renderPlot(); };
+    row.querySelector(".vis").onchange = (e) => { d.visible = e.target.checked; renderPlot(); };
+    row.querySelector(".col").oninput = (e) => { d.color = e.target.value; renderPlot(); };
+    row.querySelector(".name").onchange = (e) => { d.name = e.target.value || d.name; renderPlot(); };
+    row.querySelector(".rm").onclick = () => {
+      state.datasets = state.datasets.filter((q) => q !== d);
+      state.marks = state.marks.filter((m) => m.ds !== d.id);
+      renderDatasets(); renderPlot();
+    };
+    row.querySelector(".kind").onchange = (e) => { d.kind = e.target.value; state.view = { x: null, y: null }; renderDatasets(); renderPlot(); };
+    const lz = row.querySelector(".laser");
+    if (lz) lz.onchange = (e) => { const v = +e.target.value; if (v > 0) { d.laser = v; renderPlot(); } };
+    el.appendChild(row);
+  }
+}
+
+function renderRefs() {
+  const q = $("refSearch").value.trim().toLowerCase();
+  const all = [...REFS, ...state.customRefs.map((r) => ({ ...r, cat: "Custom" }))];
+  const cats = [];
+  for (const r of all) {
+    const hay = (r.name + " " + r.cat + " " + (r.note || "") + " " + r.peaks.map((p) => p[2] || "").join(" ")).toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    let c = cats.find((c) => c.name === r.cat);
+    if (!c) cats.push((c = { name: r.cat, items: [] }));
+    c.items.push(r);
+  }
+  const openNow = new Set([...document.querySelectorAll("#refList details[open]")].map((d) => d.dataset.cat));
+  const el = $("refList"); el.innerHTML = "";
+  if (!cats.length) { el.innerHTML = `<div class="empty">No references match "${esc(q)}".</div>`; return; }
+  for (const c of cats) {
+    const det = document.createElement("details");
+    det.className = "cat"; det.dataset.cat = c.name;
+    const nOn = c.items.filter((r) => state.refsOn.has(r.id)).length;
+    det.open = !!q || openNow.has(c.name) || (!refsRenderedOnce && c.name === "Infrared (absorption)");
+    det.innerHTML = `<summary>${esc(c.name)}<span class="n">${nOn ? nOn + " on / " : ""}${c.items.length}</span></summary>`;
+    for (const r of c.items) {
+      const on = state.refsOn.has(r.id);
+      const lab = document.createElement("label");
+      lab.className = "ref-item";
+      lab.title = (r.note ? r.note + ". " : "") + r.peaks.map((p) => p[0]).join(", ");
+      lab.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}><span class="dot" style="background:${on ? state.refsOn.get(r.id) : "transparent"}"></span>${esc(r.name)}<span class="kind">${r.kind === "nm" ? "nm" : r.kind === "shift" ? "Raman" : "IR"}</span>`;
+      lab.querySelector("input").onchange = (e) => {
+        if (e.target.checked) state.refsOn.set(r.id, REF_COLORS[refColorCursor++ % REF_COLORS.length]);
+        else state.refsOn.delete(r.id);
+        renderRefs(); renderPlot();
+      };
+      if (c.name === "Custom") {
+        const del = document.createElement("button");
+        del.className = "icon del"; del.textContent = "x"; del.title = "Delete custom reference";
+        del.onclick = (e) => {
+          e.preventDefault();
+          state.customRefs = state.customRefs.filter((q) => q.id !== r.id);
+          state.refsOn.delete(r.id); store("spectra.customRefs", state.customRefs);
+          renderRefs(); renderPlot();
+        };
+        lab.appendChild(del);
+      }
+      det.appendChild(lab);
+    }
+    el.appendChild(det);
+  }
+  refsRenderedOnce = true;
+}
+let refsRenderedOnce = false;
+
+function syncControls() {
+  $("axisSel").value = state.axis;
+  $("laser").value = state.laser;
+  $("normalize").checked = state.normalize;
+  $("offset").value = state.offset; $("offsetOut").textContent = state.offset;
+  $("lineW").value = state.lineWidth; $("lineWOut").textContent = state.lineWidth;
+  $("visBand").checked = state.visBand;
+  $("refLabels").checked = state.refLabels;
+  $("tAutoY").classList.toggle("on", state.autoY);
+  $("tReverse").classList.toggle("on", state.reverse);
+  $("tMark").classList.toggle("on", state.markMode);
+  $("tZoom").classList.toggle("on", state.dragmode === "zoom");
+  $("tPan").classList.toggle("on", state.dragmode === "pan");
+}
+
+/* ---------------- Export ---------------- */
+function saveFile(filename, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function stamp() { return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-"); }
+
+async function exportImage(fmt, which) {
+  const w = gd.clientWidth, h = gd.clientHeight;
+  let restore = null;
+  if (which === "full") {
+    restore = { x: state.view.x, y: state.view.y };
+    const xr = fullXExtent();
+    const yr = state.autoY ? yExtent(xr) : yExtent(null);
+    internal = true;
+    await Plotly.relayout(gd, { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr, "yaxis.range": yr });
+  }
+  try {
+    const url = await Plotly.toImage(gd, { format: fmt, width: Math.max(w, 900), height: Math.max(h, 500), scale: fmt === "png" ? 2 : 1 });
+    const blob = await (await fetch(url)).blob();
+    await saveFile(`specspec-${which}-${stamp()}.${fmt}`, blob);
+  } catch (e) {
+    toast("Image export failed: " + e.message, 6000);
+  } finally {
+    if (restore) { internal = false; state.view = restore; renderPlot(); }
+  }
+}
+
+function exportCsv(which) {
+  const vis = state.datasets.filter((d) => d.visible);
+  if (!vis.length) { toast("Nothing to export: no visible spectra."); return; }
+  computeAll();
+  const xr = which === "view" ? (state.view.x || fullXExtent()) : [-Infinity, Infinity];
+  const u = state.axis === "nm" ? "nm" : "cm-1";
+  const cols = vis.map((d) => {
+    const { px } = cache.get(d.id);
+    const s = state.normalize ? 1 / d.ymax : 1;
+    const xs = [], ys = [];
+    for (let i = 0; i < px.length; i++) if (px[i] >= xr[0] && px[i] <= xr[1]) { xs.push(px[i]); ys.push(d.y[i] * s); }
+    return { name: d.name.replace(/"/g, "'"), xs, ys };
+  });
+  const n = Math.max(...cols.map((c) => c.xs.length));
+  const lines = [cols.map((c) => `"${c.name} X (${u})","${c.name} Y"`).join(",")];
+  for (let i = 0; i < n; i++) lines.push(cols.map((c) => (i < c.xs.length ? `${c.xs[i]},${c.ys[i]}` : ",")).join(","));
+  saveFile(`specspec-${which}-${stamp()}.csv`, new Blob([lines.join("\n")], { type: "text/csv" }));
+}
+
+/* ---------------- Sessions ---------------- */
+const SESSION_FORMAT = "spectra-overlay-session";
+
+function saveSession() {
+  const sess = {
+    format: SESSION_FORMAT, version: 1, saved: new Date().toISOString(),
+    settings: {
+      axis: state.axis, laser: state.laser, normalize: state.normalize, offset: state.offset, lineWidth: state.lineWidth,
+      visBand: state.visBand, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels,
+    },
+    view: state.view,
+    datasets: state.datasets.map((d) => ({
+      id: d.id, name: d.name, kind: d.kind, color: d.color, visible: d.visible, laser: d.laser, example: d.example,
+      ymode: d.ymode, x: Array.from(d.x), y: Array.from(d.yRaw),
+    })),
+    refsOn: [...state.refsOn.entries()],
+    customRefs: state.customRefs,
+    marks: state.marks,
+  };
+  saveFile(`specspec-session-${stamp()}.json`, new Blob([JSON.stringify(sess)], { type: "application/json" }));
+}
+
+async function loadSession(file) {
+  let sess;
+  try { sess = JSON.parse(await file.text()); } catch (e) { toast(`${file.name}: not valid JSON.`, 6000); return; }
+  if (!sess || sess.format !== SESSION_FORMAT || !Array.isArray(sess.datasets)) {
+    toast(`${file.name}: not a SpecSpec session file.`, 6000); return;
+  }
+  const st = sess.settings || {};
+  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "autoY", "reverse", "refLabels"]) if (k in st) state[k] = st[k];
+  state.datasets = []; colorCursor = 0;
+  const idMap = new Map();
+  for (const d of sess.datasets) {
+    if (!Array.isArray(d.x) || !Array.isArray(d.y) || d.x.length !== d.y.length) continue;
+    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example });
+    if (/^#[0-9a-f]{6}$/i.test(d.color)) ds.color = d.color;
+    ds.visible = d.visible !== false;
+    if (d.laser > 0) ds.laser = +d.laser;
+    if (["flip", "t2a", "a2t"].includes(d.ymode)) { ds.ymode = d.ymode; applyYMode(ds); }
+    idMap.set(d.id, ds.id);
+  }
+  if (Array.isArray(sess.customRefs)) {
+    const have = new Set(state.customRefs.map((r) => r.id));
+    for (const r of sess.customRefs) if (r && r.id && Array.isArray(r.peaks) && !have.has(r.id)) state.customRefs.push(r);
+    store("spectra.customRefs", state.customRefs);
+  }
+  state.refsOn = new Map((sess.refsOn || []).filter((e) => Array.isArray(e) && e.length === 2));
+  refColorCursor = state.refsOn.size;
+  state.marks = (sess.marks || []).filter((m) => idMap.has(m.ds)).map((m) => ({ ds: idMap.get(m.ds), i: m.i }));
+  state.view = sess.view && typeof sess.view === "object" ? { x: sess.view.x || null, y: sess.view.y || null } : { x: null, y: null };
+  state.dragmode = "zoom"; state.markMode = false;
+  syncControls();
+  renderAll();
+  toast(`Loaded session: ${state.datasets.length} spectra, ${state.refsOn.size} references.`);
+}
+
+/* ---------------- Controls ---------------- */
+function bindControls() {
+  $("btnOpen").onclick = () => $("fileInput").click();
+  $("btnSaveSession").onclick = saveSession;
+  $("btnLoadSession").onclick = () => $("sessionInput").click();
+  $("sessionInput").onchange = (e) => { if (e.target.files[0]) loadSession(e.target.files[0]); e.target.value = ""; };
+  $("fileInput").onchange = (e) => { importFiles(e.target.files); e.target.value = ""; };
+  const drop = $("drop");
+  let depth = 0;
+  window.addEventListener("dragenter", (e) => { if (e.dataTransfer?.types?.includes("Files")) { depth++; drop.classList.add("over"); } });
+  window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) drop.classList.remove("over"); });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => {
+    e.preventDefault(); depth = 0; drop.classList.remove("over");
+    if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files);
+  });
+
+  $("axisSel").onchange = (e) => { state.axis = e.target.value; state.view = { x: null, y: null }; renderPlot(); };
+  $("laser").onchange = (e) => {
+    const v = +e.target.value; if (!(v > 0)) return;
+    state.laser = v; store("spectra.laser", v); renderPlot();
+  };
+  $("normalize").onchange = (e) => { state.normalize = e.target.checked; state.view.y = null; renderPlot(); };
+  $("offset").oninput = (e) => { state.offset = +e.target.value; $("offsetOut").textContent = state.offset; state.view.y = null; renderPlot(); };
+  $("lineW").oninput = (e) => { state.lineWidth = +e.target.value; $("lineWOut").textContent = state.lineWidth; renderPlot(); };
+  $("visBand").onchange = (e) => { state.visBand = e.target.checked; renderPlot(); };
+  $("refLabels").onchange = (e) => { state.refLabels = e.target.checked; renderPlot(); };
+  $("refSearch").oninput = () => renderRefs();
+  $("refClear").onclick = () => { state.refsOn.clear(); refColorCursor = 0; renderRefs(); renderPlot(); };
+
+  $("customForm").onsubmit = (e) => {
+    e.preventDefault();
+    const peaks = $("cPeaks").value.split(/[\s,;]+/).filter(Boolean).map((t) => {
+      const [p, h] = t.split(":"); return [+p, h === undefined ? 0.6 : Math.max(0, Math.min(1, +h))];
+    }).filter((p) => isFinite(p[0]) && isFinite(p[1]));
+    if (!peaks.length) { toast("Enter at least one numeric peak position."); return; }
+    const r = { id: "c-" + Date.now(), name: $("cName").value.trim() || "Custom", kind: $("cKind").value, peaks };
+    state.customRefs.push(r);
+    state.refsOn.set(r.id, REF_COLORS[refColorCursor++ % REF_COLORS.length]);
+    store("spectra.customRefs", state.customRefs);
+    $("cName").value = ""; $("cPeaks").value = "";
+    toast(`Added ${r.name} (${peaks.length} peaks).`);
+    renderRefs(); renderPlot();
+  };
+
+  $("tZoom").onclick = () => { state.dragmode = "zoom"; syncControls(); Plotly.relayout(gd, { dragmode: "zoom" }); };
+  $("tPan").onclick = () => { state.dragmode = "pan"; syncControls(); Plotly.relayout(gd, { dragmode: "pan" }); };
+  $("tReset").onclick = resetView;
+  $("tAutoY").onclick = () => { state.autoY = !state.autoY; state.view.y = null; syncControls(); renderPlot(); };
+  $("tReverse").onclick = () => { state.reverse = !state.reverse; syncControls(); renderPlot(); };
+  $("tMark").onclick = () => {
+    state.markMode = !state.markMode; syncControls();
+    if (state.markMode) toast("Click a trace to label that point. Click a label to remove it.");
+  };
+  $("tClearMarks").onclick = () => { state.marks = []; renderPlot(); };
+
+  const menu = $("exportMenu");
+  $("tExport").onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; $("tExport").setAttribute("aria-expanded", String(!menu.hidden)); };
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) { menu.hidden = true; $("tExport").setAttribute("aria-expanded", "false"); } });
+  menu.onclick = (e) => {
+    const b = e.target.closest("button[data-exp]"); if (!b) return;
+    menu.hidden = true;
+    const [fmt, which] = b.dataset.exp.split(":");
+    if (fmt === "csv") exportCsv(which); else exportImage(fmt, which);
+  };
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, select, textarea, dialog") || e.ctrlKey || e.metaKey || e.altKey) return;
+    const xr = state.view.x || fullXExtent();
+    const span = xr[1] - xr[0], mid = (xr[0] + xr[1]) / 2;
+    const dir = state.reverse ? -1 : 1;
+    let nr = null;
+    if (e.key === "ArrowLeft") nr = [xr[0] - dir * span * 0.15, xr[1] - dir * span * 0.15];
+    else if (e.key === "ArrowRight") nr = [xr[0] + dir * span * 0.15, xr[1] + dir * span * 0.15];
+    else if (e.key === "+" || e.key === "=" || e.key === "ArrowUp") nr = [mid - span * 0.35, mid + span * 0.35];
+    else if (e.key === "-" || e.key === "_" || e.key === "ArrowDown") nr = [mid - span * 0.7, mid + span * 0.7];
+    else if (e.key === "0" || e.key === "Home") { e.preventDefault(); resetView(); return; }
+    if (nr) { e.preventDefault(); setXRange(nr); }
+  });
+
+  const rethemed = () => renderPlot();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", rethemed);
+  new MutationObserver(rethemed).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+
+/* ---------------- Example spectrum ---------------- */
+function makeExample() {
+  // Simulated liquid-film IR absorbance spectra (Lorentzian bands plus noise), 25,000 points over 400-4000 cm-1.
+  const sims = [
+    { name: "Example: simulated ethanol IR", ref: "ir-ethanol", bands: [[3330, 0.55, 260], [2974, 0.62, 22], [2928, 0.36, 20], [2880, 0.28, 18], [1450, 0.22, 22], [1380, 0.26, 18], [1088, 0.5, 18], [1045, 0.9, 20], [880, 0.42, 16]] },
+    { name: "Example: simulated isopropanol IR", ref: "ir-ipa", bands: [[3340, 0.55, 260], [2970, 0.8, 24], [2930, 0.3, 18], [1379, 0.36, 16], [1160, 0.42, 16], [1130, 0.52, 16], [950, 0.6, 16], [817, 0.35, 14]] },
+  ];
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const n = 25000;
+  for (const sim of sims) {
+    const x = new Float64Array(n), y = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const v = 4000 - (3600 * i) / (n - 1); x[i] = v;
+      let s = 0.02;
+      for (const [c, a, w] of sim.bands) s += a / (1 + ((v - c) / (w / 2)) ** 2);
+      y[i] = s + (rnd() - 0.5) * 0.006;
+    }
+    addDataset({ name: sim.name, x, y, kind: "wn", example: true });
+    state.refsOn.set(sim.ref, REF_COLORS[refColorCursor++]);
+  }
+  state.axis = "cm";
+  state.reverse = true;
+}
+
+/* ---------------- Boot ---------------- */
+state.laser = recall("spectra.laser", 532);
+state.customRefs = recall("spectra.customRefs", []);
+if (!Array.isArray(state.customRefs)) state.customRefs = [];
+makeExample();
+syncControls();
+bindControls();
+renderDatasets(); renderRefs();
+computeAll();
+{
+  const { x, y } = currentRanges();
+  const { traces, layout } = buildFigure(x, y);
+  Plotly.newPlot(gd, traces, layout, config).then(() => { attachPlotEvents(); updateReadout(); });
+}
+</script>
+</html>
