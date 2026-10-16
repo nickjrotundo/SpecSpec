@@ -175,7 +175,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
 .dlg .actions .check { margin-right: auto; font-size: 12.5px; color: var(--muted); }
 
 .toast {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+  position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(108px + env(safe-area-inset-top, 0px)); z-index: 50;
   background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 7px; font-size: 13px; max-width: calc(100vw - 32px);
   box-shadow: 0 6px 20px rgba(0,0,0,0.25);
 }
@@ -211,7 +211,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
         <div>Drop CSV / TXT / JCAMP files (or a saved session) here</div>
         <button class="primary" id="btnOpen">Open files...</button>
         <small>Any delimiter. Units detected from headers or values; you will be asked if unclear.</small>
-        <input type="file" id="fileInput" multiple accept=".json,.csv,.txt,.tsv,.dat,.xy,.asc,.prn,.jdx,.dx,.jcamp,.spc.txt,text/plain,text/csv" hidden>
+        <input type="file" id="fileInput" multiple accept=".json,.csv,.txt,.tsv,.dat,.xy,.asc,.prn,.jdx,.dx,.jcamp,.spc,.log,.bin,text/plain,text/csv" hidden>
       </div>
     </section>
 
@@ -288,6 +288,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
           <button data-exp="png:full">PNG image</button>
           <button data-exp="svg:full">SVG image</button>
           <button data-exp="csv:full">CSV data (all points)</button>
+          <button data-exp="jdx:full">JCAMP-DX (one file per spectrum)</button>
         </div>
       </div>
     </div>
@@ -325,8 +326,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="vendor/plotly.min.js"></script>
-<script>window.Plotly || document.write('<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"><\/script>');</script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js" integrity="sha384-cCVCZkAjYNxaYKbM8lsArLznDF/SvMFr1jcZrvOpSTCa0W40ZAdLzHCEulnUa5i7" crossorigin="anonymous"></script>
 <script>
 "use strict";
 
@@ -632,6 +632,66 @@ function parseJcamp(text) {
   };
 }
 
+/* Bomem DA3 (PDP-11 / RSX-11) binary spectra: .SPC single beam, .LOG log ratio, etc.
+   512-byte blocks; blocks 1-3 header, data from byte 1536 as N DEC F_floating values (cm-1, evenly spaced). */
+function decF(w0, w1) {
+  const e = (w0 >> 7) & 0xff;
+  if (e === 0) return 0;
+  const m = ((w0 & 0x7f) * 65536 + w1 + 8388608) / 16777216;
+  return (w0 & 0x8000 ? -m : m) * Math.pow(2, e - 128);
+}
+function decD(w0, w1, w2, w3) {
+  const e = (w0 >> 7) & 0xff;
+  if (e === 0) return 0;
+  const m = ((w0 & 0x7f) + 128) / 256 + w1 / 16777216 + w2 / 1099511627776 + w3 / 72057594037927936;
+  return (w0 & 0x8000 ? -m : m) * Math.pow(2, e - 128);
+}
+function asciiAt(u8, off, len) {
+  let s = "";
+  for (let i = off; i < off + len && i < u8.length; i++) s += u8[i] >= 32 && u8[i] < 127 ? String.fromCharCode(u8[i]) : " ";
+  return s.replace(/\s+/g, " ").trim();
+}
+function parseBomem(buf, fname) {
+  const u8 = new Uint8Array(buf);
+  if (u8.length < 1536 + 8 || u8.length % 512) return null;
+  const dv = new DataView(buf instanceof ArrayBuffer ? buf : u8.buffer);
+  const w = (i) => dv.getUint16(2 * i, true);
+  const d = (i) => decD(w(i), w(i + 1), w(i + 2), w(i + 3));
+  const blocks = w(0), n = w(1);
+  const first = d(3), last = d(7), dx = d(11);
+  if (blocks * 512 !== u8.length || n < 2 || 1536 + 4 * n > u8.length) return null;
+  if (!(dx > 0) || !(last > first) || Math.abs(first + (n - 1) * dx - last) > 1.5 * dx) return null;
+  const x = new Float64Array(n), y = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    x[i] = first + i * dx;
+    y[i] = decF(dv.getUint16(1536 + 4 * i, true), dv.getUint16(1538 + 4 * i, true));
+  }
+  const date = asciiAt(u8, 128, 17).replace(/^(\S{9})(\S)/, "$1 $2");
+  const hw = [0, 1, 2, 3].map((k) => asciiAt(u8, 528 + 4 * k, 4)).filter(Boolean).join(" ");
+  const files = asciiAt(u8, 512 + 452, 60).replace(/ +\./g, ".");
+  const ext = (fname.match(/\.([A-Za-z0-9]+)(;\d+)?$/) || [])[1] || "";
+  const info = [`Bomem DA3 ${ext.toUpperCase()}`.trim(), date, asciiAt(u8, 120, 8) && `apodization ${asciiAt(u8, 120, 8)}`, hw && `optics ${hw}`, files && `files ${files}`]
+    .filter(Boolean).join("; ");
+  return { cols: [x, y], names: ["Wavenumber (cm-1)", ext.toUpperCase() === "LOG" ? "Log ratio" : "Intensity"], preamble: "", rows: n,
+    title: fname.replace(/;\d+$/, "").replace(/\.[^.]+$/, ""), jcampKind: "wn", info,
+    why: `Bomem DA3 binary: ${n.toLocaleString()} points, ${fmt(first)} to ${fmt(x[n - 1])} cm-1, step ${dx.toPrecision(6)}.` };
+}
+/* RSX-11 DMP text dumps: octal word lines ("000000    000027 004756 ...") or /HX byte lines printed right to left. */
+function parseDmpDump(text) {
+  const top = text.slice(0, 600);
+  if (!/Dump of /.test(top) || !/Virtual block/.test(top)) return null;
+  const head = text.match(/Dump of\s+(\S+)/);
+  const name = head ? head[1].replace(/^.*[\]:]/, "") : "dump";
+  const bytes = [];
+  for (const line of text.split(/\r?\n/)) {
+    let m = line.match(/^[0-7]{6}\s{2,}((?:[0-7]{6}\s*){1,8})$/);
+    if (m) { for (const t of m[1].trim().split(/\s+/)) { const v = parseInt(t, 8); bytes.push(v & 0xff, v >> 8); } continue; }
+    m = line.match(/^((?:[0-9A-F]{2} ){1,16})\s+[0-9A-F]{4}\s*$/);
+    if (m) bytes.push(...m[1].trim().split(" ").map((h) => parseInt(h, 16)).reverse());
+  }
+  return bytes.length ? { name, buf: new Uint8Array(bytes).buffer } : null;
+}
+
 /* ---------------- Unit detection ---------------- */
 function detectUnit(xs, header, preamble) {
   const h = (header || "").toLowerCase();
@@ -665,16 +725,35 @@ async function importFiles(files) {
     if (/\.json$/i.test(f.name)) { await loadSession(f); continue; }
     let parsed;
     try {
-      const text = await f.text();
-      const isJ = /\.(jdx|dx|jcamp)$/i.test(f.name) || /^\s*##/.test(text.slice(0, 200));
-      parsed = isJ ? parseJcamp(text) : parseDelimited(text);
+      const buf = await f.arrayBuffer();
+      parsed = parseBomem(buf, f.name);
+      if (!parsed && buf.byteLength % 512 === 0) {
+        // A binary rebuilt from an RSX /HX dump without undoing its right-to-left rows has every 16-byte row reversed.
+        const r = new Uint8Array(buf.byteLength), src = new Uint8Array(buf);
+        for (let o = 0; o < r.length; o += 16) for (let k = 0; k < 16; k++) r[o + k] = src[o + 15 - k];
+        parsed = parseBomem(r.buffer, f.name);
+        if (parsed) parsed.why += " Byte order was scrambled (16-byte rows reversed, as printed by DMP /HX) and has been corrected.";
+      }
+      if (!parsed) {
+        const text = new TextDecoder().decode(buf);
+        const dmp = parseDmpDump(text);
+        if (dmp) {
+          parsed = parseBomem(dmp.buf, dmp.name);
+          if (!parsed) throw new Error("RSX dump read, but it is not a Bomem DA3 spectrum file.");
+        } else if (/\.spc$/i.test(f.name)) {
+          throw new Error("Not a Bomem DA3 .SPC file. Thermo/Galactic SPC is not supported; export it as CSV or JCAMP-DX.");
+        } else {
+          const isJ = /\.(jdx|dx|jcamp)$/i.test(f.name) || /^\s*##/.test(text.slice(0, 200));
+          parsed = isJ ? parseJcamp(text) : parseDelimited(text);
+        }
+      }
     } catch (e) {
       toast(`${f.name}: ${e.message}`, 6000); continue;
     }
     if (parsed.rows < 2) { toast(`${f.name}: fewer than two data rows.`, 6000); continue; }
     const base = (parsed.title || f.name).replace(/\.[^.]+$/, "");
     const det = parsed.jcampKind
-      ? { kind: parsed.jcampKind, confident: true, why: "Units read from the JCAMP-DX header." }
+      ? { kind: parsed.jcampKind, confident: true, why: parsed.why || "Units read from the JCAMP-DX header." }
       : detectUnit(parsed.cols[0], parsed.names[0], parsed.preamble);
     let choice;
     const needAsk = !det.confident || parsed.cols.length > 2;
@@ -731,7 +810,7 @@ function addFromParsed(base, parsed, choice) {
   }
   for (const yi of choice.ys) {
     const name = choice.ys.length > 1 ? `${base}: ${parsed.names[yi]}` : base;
-    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind });
+    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind, info: parsed.info });
   }
   if (!hadUser) {
     state.axis = choice.kind === "nm" ? "nm" : "cm";
@@ -742,9 +821,9 @@ function addFromParsed(base, parsed, choice) {
   renderAll();
 }
 
-function addDataset({ name, x, y, kind, example = false }) {
+function addDataset({ name, x, y, kind, example = false, info = "" }) {
   const ds = {
-    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true,
+    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true, info,
     color: TRACE_COLORS[colorCursor++ % TRACE_COLORS.length],
     laser: state.laser,
   };
@@ -1025,7 +1104,7 @@ function renderDatasets() {
           <option value="none">Y as is</option><option value="flip">Flip Y</option><option value="t2a">T to A</option><option value="a2t">A to %T</option>
         </select>
         ${d.kind === "shift" ? `<input type="number" class="laser" step="0.1" value="${d.laser}" title="Laser wavelength (nm) for this Raman spectrum">` : ""}
-        <span class="meta">${d.example ? '<span class="tag">example</span> ' : ""}${d.x.length.toLocaleString()} pts</span>
+        <span class="meta" title="${esc(d.info || "")}">${d.example ? '<span class="tag">example</span> ' : ""}${d.x.length.toLocaleString()} pts</span>
       </div>`;
     row.querySelector(".kind").value = d.kind;
     row.querySelector(".ymode").value = d.ymode;
@@ -1140,6 +1219,44 @@ async function exportImage(fmt, which) {
   }
 }
 
+function jcampText(d) {
+  const x = d.x, y = d.y, n = x.length;
+  const num = (v) => (Number.isFinite(v) ? +v.toPrecision(10) + "" : "?");
+  const dx = (x[n - 1] - x[0]) / (n - 1);
+  let even = n > 2 && dx !== 0;
+  for (let i = 0; even && i < n; i++) if (Math.abs(x[i] - (x[0] + i * dx)) > Math.abs(dx) * 1e-3) even = false;
+  const xunits = { nm: "NANOMETERS", um: "MICROMETERS", wn: "1/CM", shift: "1/CM" }[d.kind];
+  const dtype = { nm: "UV/VIS SPECTRUM", um: "INFRARED SPECTRUM", wn: "INFRARED SPECTRUM", shift: "RAMAN SPECTRUM" }[d.kind];
+  const yunits = { t2a: "ABSORBANCE", a2t: "TRANSMITTANCE" }[d.ymode] || "ARBITRARY UNITS";
+  const ys = d.ymode === "a2t" ? Array.from(y, (v) => v / 100) : y;
+  const L = [`##TITLE=${d.name}`, "##JCAMP-DX=4.24", `##DATA TYPE=${dtype}`, "##ORIGIN=SpecSpec export", "##OWNER=",
+    ...(d.info ? [`$$ ${d.info}`] : []),
+    `##XUNITS=${xunits}`, `##YUNITS=${yunits}`, "##XFACTOR=1", "##YFACTOR=1",
+    `##FIRSTX=${num(x[0])}`, `##LASTX=${num(x[n - 1])}`, `##NPOINTS=${n}`, `##FIRSTY=${num(ys[0])}`];
+  if (even) {
+    L.push(`##DELTAX=${num(dx)}`, "##XYDATA=(X++(Y..Y))");
+    for (let i = 0; i < n; i += 8) {
+      const row = [num(x[i])];
+      for (let j = i; j < Math.min(n, i + 8); j++) row.push(num(ys[j]));
+      L.push(row.join(" "));
+    }
+  } else {
+    L.push("##XYPOINTS=(XY..XY)");
+    for (let i = 0; i < n; i++) L.push(`${num(x[i])}, ${num(ys[i])}`);
+  }
+  L.push("##END=");
+  return L.join("\n") + "\n";
+}
+async function exportJcamp() {
+  const vis = state.datasets.filter((d) => d.visible);
+  if (!vis.length) { toast("Nothing to export: no visible spectra."); return; }
+  for (const d of vis) {
+    saveFile(`${d.name.replace(/[^\w.-]+/g, "_")}.jdx`, new Blob([jcampText(d)], { type: "chemical/x-jcamp-dx" }));
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  toast(`Exported ${vis.length} JCAMP-DX file${vis.length > 1 ? "s" : ""}.`);
+}
+
 function exportCsv(which) {
   const vis = state.datasets.filter((d) => d.visible);
   if (!vis.length) { toast("Nothing to export: no visible spectra."); return; }
@@ -1171,7 +1288,7 @@ function saveSession() {
     },
     view: state.view,
     datasets: state.datasets.map((d) => ({
-      id: d.id, name: d.name, kind: d.kind, color: d.color, visible: d.visible, laser: d.laser, example: d.example,
+      id: d.id, name: d.name, kind: d.kind, color: d.color, visible: d.visible, laser: d.laser, example: d.example, info: d.info || "",
       ymode: d.ymode, x: Array.from(d.x), y: Array.from(d.yRaw),
     })),
     refsOn: [...state.refsOn.entries()],
@@ -1193,7 +1310,7 @@ async function loadSession(file) {
   const idMap = new Map();
   for (const d of sess.datasets) {
     if (!Array.isArray(d.x) || !Array.isArray(d.y) || d.x.length !== d.y.length) continue;
-    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example });
+    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example, info: String(d.info || "") });
     if (/^#[0-9a-f]{6}$/i.test(d.color)) ds.color = d.color;
     ds.visible = d.visible !== false;
     if (d.laser > 0) ds.laser = +d.laser;
@@ -1278,7 +1395,7 @@ function bindControls() {
     const b = e.target.closest("button[data-exp]"); if (!b) return;
     menu.hidden = true;
     const [fmt, which] = b.dataset.exp.split(":");
-    if (fmt === "csv") exportCsv(which); else exportImage(fmt, which);
+    if (fmt === "csv") exportCsv(which); else if (fmt === "jdx") exportJcamp(); else exportImage(fmt, which);
   };
 
   window.addEventListener("keydown", (e) => {
