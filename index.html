@@ -3,933 +3,1502 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>nuviewer</title>
+<title>SpecSpec</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: control rail on the left; spectrum image strip above the calibrated plot on the right. Stacks below 900px. */
+/* Layout: instrument-style workbench. Fixed control rail on the left, plot fills the rest; stacks below 860px. */
 :root {
-  --bg: #eef0f2;
+  --bg: #eef1f3;
   --panel: #ffffff;
-  --panel-2: #f5f6f8;
-  --ink: #1b1f27;
-  --muted: #5d6573;
-  --line: #d7dbe1;
-  --accent: #6d3fc0;
+  --panel-2: #f6f8f9;
+  --ink: #18222b;
+  --muted: #5a6874;
+  --line: #d6dde3;
+  --accent: #0c6b88;
   --accent-ink: #ffffff;
-  --accent-soft: #ebe3f8;
+  --accent-soft: #dcecf1;
   --plot-bg: #ffffff;
-  --grid: #e6e8ec;
+  --grid: #e5e9ed;
   --danger: #b4372b;
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d0f13; --panel: #14171d; --panel-2: #101318; --ink: #e3e6eb; --muted: #8a93a1;
-    --line: #262b34; --accent: #a987ea; --accent-ink: #120a20; --accent-soft: #261c3a;
-    --plot-bg: #0f1216; --grid: #1f242c; --danger: #e0705f; color-scheme: dark;
+    --bg: #0c1115; --panel: #131a20; --panel-2: #10161b; --ink: #e2e8ed; --muted: #8796a3;
+    --line: #25303a; --accent: #4db2d0; --accent-ink: #061217; --accent-soft: #15303a;
+    --plot-bg: #0f151a; --grid: #1e2830; --danger: #e0705f; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d0f13; --panel: #14171d; --panel-2: #101318; --ink: #e3e6eb; --muted: #8a93a1;
-  --line: #262b34; --accent: #a987ea; --accent-ink: #120a20; --accent-soft: #261c3a;
-  --plot-bg: #0f1216; --grid: #1f242c; --danger: #e0705f; color-scheme: dark;
+  --bg: #0c1115; --panel: #131a20; --panel-2: #10161b; --ink: #e2e8ed; --muted: #8796a3;
+  --line: #25303a; --accent: #4db2d0; --accent-ink: #061217; --accent-soft: #15303a;
+  --plot-bg: #0f151a; --grid: #1e2830; --danger: #e0705f; color-scheme: dark;
 }
 html, body { height: 100%; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.4; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 14px; line-height: 1.4;
+}
 * { box-sizing: border-box; }
 button, input, select, textarea { font: inherit; color: inherit; }
-button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 10px; cursor: pointer;
+}
 button:hover { border-color: var(--accent); }
-button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button.on { background: var(--accent-soft); border-color: var(--accent); }
-button.small { padding: 2px 8px; font-size: 12.5px; }
-input[type="text"], input[type="number"], select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; min-width: 0; }
-input[type="number"] { font-family: var(--font-mono); font-size: 13px; }
+button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+button.icon { padding: 2px 7px; line-height: 1.2; }
+input[type="text"], input[type="number"], select, textarea {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; min-width: 0;
+}
+input[type="color"] { width: 26px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
 label { cursor: pointer; }
 
-.app { height: 100%; display: grid; grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "head head" "side main"; }
-header.top {
-  grid-area: head; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--line);
-  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+.app {
+  height: 100%; display: grid; grid-template-columns: 330px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "head head" "side main";
 }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-.brand .grating { width: 34px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 3px), linear-gradient(90deg, #6a00c8, #2d3cff, #00a8ff, #00d26a, #e8e000, #ff8a00, #e00000); }
+header.top {
+  grid-area: head; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: 0.01em; }
+.brand .bar {
+  width: 34px; height: 12px; border-radius: 2px;
+  background: linear-gradient(90deg, #6a00c8, #2d3cff, #00a8ff, #00d26a, #e8e000, #ff8a00, #e00000);
+}
+.session { margin-left: auto; display: flex; gap: 6px; }
 .hint { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
 .hint kbd { font-family: var(--font-mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--panel-2); }
 
-aside.side { grid-area: side; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 12px 14px 24px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 18px; }
-.sec h2 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 12px; text-align: center; color: var(--muted); display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--panel-2); }
+aside.side {
+  grid-area: side; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel);
+  padding: 12px max(16px, env(safe-area-inset-left, 0px)); padding-right: 14px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.sec h2 {
+  margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.drop {
+  border: 1.5px dashed var(--line); border-radius: 8px; padding: 12px; text-align: center; color: var(--muted);
+  display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--panel-2);
+}
 .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
 .drop small { font-size: 11.5px; }
-.info { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); word-break: break-word; }
+
+.ds-list { display: flex; flex-direction: column; gap: 6px; }
+.ds {
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 7px; display: flex; flex-direction: column; gap: 5px; background: var(--panel-2);
+}
+.ds .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ds .name { flex: 1; min-width: 0; background: transparent; border-color: transparent; font-weight: 500; }
+.ds .name:hover { border-color: var(--line); }
+.ds .meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds select { font-size: 12px; padding: 2px 4px; }
+.ds .row select { min-width: 0; }
+.ds .laser { width: 62px; font-size: 12px; padding: 2px 4px; }
+.ds.example { border-style: dashed; }
 .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600; }
+.empty { color: var(--muted); font-size: 12.5px; }
+
 .grid2 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px 10px; align-items: center; }
-.grid2 > .lbl, .grid2 > label.lbl { color: var(--muted); font-size: 12.5px; }
-.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.row input[type="number"] { width: 84px; }
-.check { display: flex; align-items: center; gap: 7px; font-size: 13px; }
-.note { font-size: 11.5px; color: var(--muted); }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: none; border-radius: 0; padding: 4px 10px; }
-.seg button.on { background: var(--accent); color: var(--accent-ink); }
-details.box { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; background: var(--panel-2); }
-details.box summary { cursor: pointer; font-size: 12.5px; color: var(--muted); padding: 2px 0; }
-table.pts { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
-table.pts th { text-align: right; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 2px 4px; }
-table.pts td { text-align: right; padding: 2px 4px; border-bottom: 1px solid var(--line); }
-table.pts td.l, table.pts th.l { text-align: left; }
-.pickform { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.groups { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.grid2 > label:first-child, .grid2 .lbl { color: var(--muted); font-size: 12.5px; }
+.check { display: flex; align-items: center; gap: 7px; }
+.range-row { display: flex; align-items: center; gap: 8px; }
+.range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.range-row output { font-family: var(--font-mono); font-size: 12px; width: 34px; text-align: right; }
+
+.ref-tools { display: flex; gap: 6px; margin-bottom: 8px; }
+.ref-tools input { flex: 1; }
+details.cat { border-top: 1px solid var(--line); }
+details.cat summary { cursor: pointer; padding: 6px 0; font-weight: 500; display: flex; justify-content: space-between; list-style: none; }
+#customDetails summary { justify-content: flex-start; }
+details.cat summary::-webkit-details-marker { display: none; }
+details.cat summary::before { content: "+"; font-family: var(--font-mono); color: var(--muted); width: 16px; display: inline-block; }
+details.cat[open] summary::before { content: "-"; }
+details.cat summary .n { margin-left: auto; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.ref-item { display: flex; align-items: center; gap: 7px; padding: 3px 0 3px 16px; font-size: 13px; }
+.ref-item .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1px solid var(--line); }
+.ref-item .kind { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.ref-item .del { margin-left: 4px; }
+.ref-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+.custom-form { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 16px; }
+.custom-form textarea { resize: vertical; min-height: 54px; font-family: var(--font-mono); font-size: 12px; }
 
 main.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--panel); border-bottom: 1px solid var(--line); padding-block: 8px; padding-left: 12px; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding-block: 8px; padding-left: 12px; padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
 .toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
 .toolbar .spacer { flex: 1; }
 .readout { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .menu { position: relative; }
-.menu-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 2px; min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+.menu-pop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 2px; min-width: 230px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
 .menu-pop button { border: none; text-align: left; background: transparent; padding: 6px 8px; }
 .menu-pop button:hover { background: var(--accent-soft); }
 .menu-pop .lab { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 6px 8px 2px; }
-.imgwrap { position: relative; height: 150px; background: #000; border-bottom: 1px solid var(--line); flex: none; }
-#imgCanvas { width: 100%; height: 100%; display: block; cursor: ns-resize; }
-.imgwrap .cap { position: absolute; left: 8px; top: 6px; font-family: var(--font-mono); font-size: 11px; color: #cfd3da; background: rgba(0,0,0,0.55); padding: 1px 6px; border-radius: 4px; pointer-events: none; }
-#plot { flex: 1; min-height: 0; }
+#plot { flex: 1; min-height: 0; position: relative; }
+#plot .zoombox { fill: transparent !important; }
+.zoomsel { position: absolute; pointer-events: none; z-index: 5; background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--accent); }
 
-.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(108px + env(safe-area-inset-top, 0px)); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 7px; font-size: 13px; max-width: min(560px, calc(100vw - 32px)); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+dialog {
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 0;
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+}
+dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
+.dlg { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dlg h3 { margin: 0; font-size: 16px; text-wrap: balance; }
+.dlg .why { font-size: 12.5px; color: var(--muted); }
+.preview { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+.preview table { border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; width: 100%; }
+.preview th, .preview td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.preview th { color: var(--muted); font-weight: 500; background: var(--panel-2); }
+.units { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.units label { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; display: flex; gap: 8px; align-items: flex-start; }
+.units label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.units small { display: block; color: var(--muted); font-size: 11.5px; }
+.ycols { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.dlg .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.dlg .actions .check { margin-right: auto; font-size: 12.5px; color: var(--muted); }
 
-@media (max-width: 900px) {
+.toast {
+  position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(108px + env(safe-area-inset-top, 0px)); z-index: 50;
+  background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 7px; font-size: 13px; max-width: calc(100vw - 32px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+@media (max-width: 860px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: "head" "main" "side"; height: auto; }
-  main.main { height: 78vh; min-height: 460px; }
+  main.main { height: 70vh; min-height: 380px; }
   aside.side { border-right: none; border-top: 1px solid var(--line); overflow: visible; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .hint { display: none; }
+  .units { grid-template-columns: 1fr; }
 }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-</head>
-<body>
+
 <div class="app">
   <header class="top">
-    <div class="brand"><span class="grating" aria-hidden="true"></span>nuviewer</div>
-    <div class="hint"><kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp; drag on the image to set the extraction band</div>
+    <div class="brand"><span class="bar" aria-hidden="true"></span>SpecSpec</div>
+    <div class="hint">
+      <kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> or <kbd>middle-drag</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp;
+      <kbd>&lt;</kbd><kbd>&gt;</kbd> pan &nbsp; <kbd>+</kbd><kbd>-</kbd> zoom &nbsp; <kbd>0</kbd> reset
+    </div>
+    <div class="session">
+      <button id="btnSaveSession" title="Save loaded spectra, colors, references, marks and view to a .json file">Save session</button>
+      <button id="btnLoadSession" title="Restore a saved .json session">Load session</button>
+      <input type="file" id="sessionInput" accept=".json,application/json" hidden>
+    </div>
   </header>
 
   <aside class="side">
     <section class="sec">
-      <h2>Image</h2>
+      <h2>Spectra</h2>
       <div class="drop" id="drop">
-        <div>Drop a stitched spectrum image here</div>
-        <button class="primary" id="btnOpen">Open image...</button>
-        <small>FITS (8/16/32-bit, float), PNG, JPG. Red should be on the right.</small>
-        <input type="file" id="fileInput" accept=".fit,.fits,.fts,.png,.jpg,.jpeg,.bmp,.webp,.gif,image/*" hidden>
-      </div>
-      <div class="info" id="imgInfo"></div>
-      <label class="check" style="margin-top:6px"><input type="checkbox" id="flipH"> Red is on the left (flip horizontally)</label>
-    </section>
-
-    <section class="sec">
-      <h2>Extraction <button class="small" id="btnAutoBand">Auto band</button></h2>
-      <div class="grid2">
-        <span class="lbl">Band rows</span>
-        <div class="row"><input type="number" id="bandTop" min="0" step="1"> to <input type="number" id="bandBot" min="0" step="1"></div>
-        <span class="lbl">Background</span>
-        <div class="row"><label class="check"><input type="checkbox" id="bgOn"> subtract, strips of</label><input type="number" id="bgW" min="2" step="1" value="30" style="width:60px"> rows</div>
-        <span class="lbl">Tilt</span>
-        <div class="row"><input type="number" id="tilt" step="0.05" value="0" title="Horizontal shift of a spectral line per 100 rows; corrects lines that are not vertical"> px/100 rows <button class="small" id="btnAutoTilt">Auto</button></div>
-        <span class="lbl">Smoothing</span>
-        <div class="row"><input type="number" id="smooth" min="0" step="0.5" value="0" title="Gaussian sigma in pixels, 0 = off"> px sigma</div>
+        <div>Drop CSV / TXT / JCAMP files (or a saved session) here</div>
+        <button class="primary" id="btnOpen">Open files...</button>
+        <small>Any delimiter. Units detected from headers or values; you will be asked if unclear.</small>
+        <input type="file" id="fileInput" multiple accept=".json,.csv,.txt,.tsv,.dat,.xy,.asc,.prn,.jdx,.dx,.jcamp,.spc,.log,.bin,text/plain,text/csv" hidden>
       </div>
     </section>
 
     <section class="sec">
-      <h2>Wavelength calibration</h2>
-      <div class="seg" id="calModeSeg"><button data-mode="nuview" class="on">nu-View formula</button><button data-mode="points">Reference lines</button></div>
-      <div id="calNuview" style="margin-top:8px">
-        <div class="grid2">
-          <label class="lbl" for="reading">First frame</label>
-          <div class="row"><input type="number" id="reading" step="0.01" value="5.00"> mm <span class="info" id="readingLD"></span></div>
-        </div>
-        <p class="note">Micrometer reading of the leftmost frame. For a stitched image this assumes the stitch keeps the camera's pixel scale and does not crop the left edge.</p>
-        <details class="box">
-          <summary>Instrument constants</summary>
-          <div class="grid2" style="margin-top:6px">
-            <label class="lbl" for="kA">Offset</label><div class="row"><input type="number" id="kA" step="0.1" value="285.4"> nm</div>
-            <label class="lbl" for="kB">Slope</label><div class="row"><input type="number" id="kB" step="0.01" value="54.64"> nm/mm</div>
-            <label class="lbl" for="kD">Dispersion</label><div class="row"><input type="number" id="kD" step="0.0005" value="0.040"> nm/px</div>
-            <label class="lbl" for="kP">Centre pixel</label><div class="row"><input type="number" id="kP" step="1" value="968"> px</div>
-          </div>
-          <p class="note">From the field reference: centre (nm) = 285.4 + 54.64 x reading; wavelength at pixel x = centre + 0.040 x (x - 968). Fit rms 1.1 nm, calibrated for 3.0 to 7.5 mm.</p>
-        </details>
-      </div>
-      <div id="calPoints" style="margin-top:8px" hidden>
-        <p class="note">Choose <b>Calibrate</b> in the toolbar, then click a known line in the plot. One point shifts the nu-View scale; two or more fit a line; three or more can fit a quadratic.</p>
-        <div class="row" style="margin-bottom:6px"><span class="lbl note">Fit</span>
-          <select id="fitOrder"><option value="1">Linear</option><option value="2">Quadratic</option></select>
-          <span class="info" id="fitInfo"></span>
-        </div>
-        <div id="pickForm" class="pickform" hidden>
-          <div class="info" id="pickInfo"></div>
-          <select id="pickLine"></select>
-          <div class="row"><input type="number" id="pickNm" step="0.01" style="width:100px"> nm <button class="primary small" id="pickAdd">Add point</button> <button class="small" id="pickCancel">Cancel</button></div>
-        </div>
-        <table class="pts" id="ptsTable"></table>
-      </div>
+      <h2>Loaded <span id="dsCount" class="hint"></span></h2>
+      <div class="ds-list" id="dsList"></div>
     </section>
 
     <section class="sec">
       <h2>Display</h2>
       <div class="grid2">
-        <label class="lbl" for="title">Title</label><input type="text" id="title" placeholder="Object name">
-        <span class="lbl">Units</span>
-        <div class="seg" id="unitSeg"><button data-u="nm" class="on">nm</button><button data-u="A">Angstrom</button></div>
-        <span class="lbl">Intensity</span>
-        <label class="check"><input type="checkbox" id="normalize" checked> Normalize to max = 1</label>
-        <span class="lbl">Style</span>
-        <div><label class="check"><input type="checkbox" id="colorFill" checked> Color fill</label><label class="check"><input type="checkbox" id="showStrip" checked> Synthetic spectrum strip</label></div>
+        <label for="axisSel">X axis</label>
+        <select id="axisSel">
+          <option value="cm">Wavenumber (cm-1)</option>
+          <option value="nm">Wavelength (nm)</option>
+        </select>
+        <span class="lbl">Y</span>
+        <label class="check"><input type="checkbox" id="normalize"> Normalize each to max = 1</label>
+        <label for="offset">Stack</label>
+        <div class="range-row"><input type="range" id="offset" min="0" max="1.5" step="0.05" value="0"><output id="offsetOut">0</output></div>
+        <label for="lineW">Line</label>
+        <div class="range-row"><input type="range" id="lineW" min="0.5" max="3" step="0.25" value="1.25"><output id="lineWOut">1.25</output></div>
+        <span class="lbl">Extras</span>
+        <label class="check"><input type="checkbox" id="visBand" checked> Visible-light color band</label>
+        <span class="lbl">Hide</span>
+        <div class="range-row"><label class="check"><input type="checkbox" id="clipOn"> values above</label><input type="number" id="clipMax" value="3.5" step="0.5" style="width:70px"></div>
       </div>
-      <div class="lbl note" style="margin:10px 0 4px">Line markers</div>
-      <div class="groups" id="groups"></div>
     </section>
 
     <section class="sec">
-      <h2>Reference spectrum</h2>
-      <div class="row">
-        <button class="small" id="btnRefFromCurrent">Use current</button>
-        <button class="small" id="btnRefLoad">Load file...</button>
-        <button class="small" id="btnRefClear">Clear</button>
-        <input type="file" id="refInput" accept=".csv,.txt,.dat,.fit,.fits,.fts" hidden>
+      <h2>Reference library <button class="icon" id="refClear" title="Hide all references">clear</button></h2>
+      <div class="ref-tools">
+        <input type="text" id="refSearch" placeholder="Search: ethanol, Hg, balmer...">
       </div>
-      <div class="info" id="refInfo" style="margin:6px 0">None loaded.</div>
-      <label class="check"><input type="checkbox" id="refShow"> Overlay reference</label>
-      <label class="check"><input type="checkbox" id="refDivide"> Divide by reference (e.g. planet / sun)</label>
-      <p class="note">Take a daylight or star frame at the same settings, choose "Use current", then load the object image and divide.</p>
+      <label class="check" style="font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="refLabels" checked> Show peak labels</label>
+      <div id="refList"></div>
+      <details class="cat" id="customDetails">
+        <summary>Add custom reference</summary>
+        <form class="custom-form" id="customForm">
+          <input type="text" id="cName" placeholder="Name, e.g. My sample peaks" required>
+          <select id="cKind">
+            <option value="wn">IR / wavenumber (cm-1)</option>
+            <option value="nm">Wavelength (nm)</option>
+          </select>
+          <textarea id="cPeaks" placeholder="Positions, comma or space separated. Optional relative height after a colon: 882:1, 1052:0.4, 2928" required></textarea>
+          <button class="primary" type="submit">Add reference</button>
+        </form>
+      </details>
+      <p class="ref-note">Positions are standard literature and calibration values (emission lines in air unless noted). Stick heights are approximate relative intensities for orientation only; real intensities depend on instrument, excitation and sample state.</p>
     </section>
   </aside>
 
   <main class="main">
     <div class="toolbar">
-      <button id="tZoom" class="on">Zoom</button>
-      <button id="tPan">Pan</button>
-      <button id="tReset">Reset view</button>
+      <button id="tZoom" class="on" title="Drag to box-zoom">Zoom</button>
+      <button id="tPan" title="Drag to pan">Pan</button>
+      <button id="tReset" title="Show everything (0 or double-click)">Reset view</button>
       <span class="sep"></span>
-      <button id="tMark" title="Click the spectrum to label a wavelength">Mark</button>
-      <button id="tCal" title="Click a known line to add a calibration point">Calibrate</button>
-      <select id="snap" title="Where a click snaps to"><option value="dip">snap to dip</option><option value="peak">snap to peak</option><option value="none">no snap</option></select>
-      <button id="tClearMarks">Clear marks</button>
+      <button id="tAutoY" class="on" title="Y axis follows the visible data while you zoom and pan in X">Auto Y</button>
+      <button id="tReverse" title="Reverse the X axis (IR convention: high wavenumber on the left)">Reverse X</button>
+      <button id="tMark" title="Click on a trace to label the point. Click a label to remove it.">Mark peaks</button>
+      <button id="tClearMarks" title="Remove all point labels">Clear marks</button>
       <span class="spacer"></span>
       <span class="readout" id="readout"></span>
       <div class="menu">
         <button id="tExport" aria-haspopup="true" aria-expanded="false">Export</button>
         <div class="menu-pop" id="exportMenu" hidden>
-          <div class="lab">Image of current view</div>
-          <button data-exp="png">PNG</button>
-          <button data-exp="svg">SVG</button>
-          <div class="lab">Data</div>
-          <button data-exp="csv">CSV (wavelength, intensity)</button>
-          <button data-exp="fits">1D FITS (linear, Angstrom)</button>
+          <div class="lab">Current view</div>
+          <button data-exp="png:view">PNG image</button>
+          <button data-exp="svg:view">SVG image</button>
+          <button data-exp="csv:view">CSV data (visible range)</button>
+          <div class="lab">Full spectrum</div>
+          <button data-exp="png:full">PNG image</button>
+          <button data-exp="svg:full">SVG image</button>
+          <button data-exp="csv:full">CSV data (all points)</button>
+          <button data-exp="jdx:full">JCAMP-DX (one file per spectrum)</button>
         </div>
       </div>
     </div>
-    <div class="imgwrap"><canvas id="imgCanvas"></canvas><span class="cap" id="imgCap"></span></div>
     <div id="plot"></div>
   </main>
 </div>
+
+<dialog id="importDlg">
+  <form class="dlg" method="dialog" id="importForm">
+    <h3 id="iTitle">Import</h3>
+    <div class="why" id="iWhy"></div>
+    <div class="preview" id="iPreview"></div>
+    <div class="grid2" id="iColsWrap">
+      <label for="iX">X column</label>
+      <select id="iX"></select>
+      <span class="lbl">Y columns</span>
+      <div class="ycols" id="iY"></div>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:6px;color:var(--muted);font-size:12.5px">X values are in:</div>
+      <div class="units" id="iUnits">
+        <label><input type="radio" name="iu" value="nm"><span>Wavelength, nm<small>UV-Vis, emission, raw spectrometer</small></span></label>
+        <label><input type="radio" name="iu" value="wn"><span>Wavenumber, cm-1<small>IR / FTIR absorbance or transmittance</small></span></label>
+        <label><input type="radio" name="iu" value="um"><span>Wavelength, um<small>Microns, IR</small></span></label>
+      </div>
+    </div>
+    <div class="actions">
+      <label class="check" id="iAllWrap"><input type="checkbox" id="iAll"> Use for remaining files</label>
+      <button value="skip" type="submit">Skip file</button>
+      <button value="ok" type="submit" class="primary">Import</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/plotly.min.js"></script>
 <script>window.Plotly || document.write('<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"><\/script>');</script>
-<script src="samples/example-frame.js"></script>
 <script>
 "use strict";
 
-/* ---------------- Reference lines (nm) from the nu-VIEW II field reference ---------------- */
-const LINE_GROUPS = [
-  { id: "sun", name: "Daylight / Sun", lines: [[393.4, "Ca II K"], [396.9, "Ca II H + H-eps"], [410.2, "H-delta"], [430.8, "G band (CH)"], [434.1, "H-gamma"], [486.1, "H-beta"], [517.3, "Mg b"], [527.0, "Fe E"], [589.3, "Na D"], [656.3, "H-alpha"], [686.7, "O2 B head"], [759.4, "O2 A head"]] },
-  { id: "stars", name: "Stars", lines: [[447.1, "He I"], [468.6, "He II"], [476.1, "TiO"], [495.4, "TiO"], [569.6, "C III"], [580.6, "C IV"], [587.6, "He I"], [616.0, "TiO"], [667.8, "He I"], [705.4, "TiO"], [849.8, "Ca II"], [854.2, "Ca II"], [866.2, "Ca II"]] },
-  { id: "neb", name: "Nebulae", lines: [[386.9, "[Ne III]"], [486.1, "H-beta"], [495.9, "[O III]"], [500.7, "[O III]"], [630.0, "[O I]"], [654.8, "[N II]"], [656.3, "H-alpha"], [658.3, "[N II]"], [671.6, "[S II]"], [673.1, "[S II]"]] },
-  { id: "planets", name: "Planets, comets", lines: [[473.7, "C2 Swan"], [516.5, "C2 Swan"], [563.5, "C2 Swan"], [619.0, "CH4"], [727.0, "CH4"], [782.0, "CO2"], [788.0, "CO2"], [862.0, "CH4"], [887.0, "CH4"]] },
-  { id: "uranus", name: "Uranus CH4 (RSpec)", lines: [[486.0, "CH4/H-beta"], [543.0, "CH4"], [576.0, "CH4"], [596.0, "CH4"], [619.0, "CH4"], [668.0, "CH4"]] },
-  { id: "lp", name: "Light pollution", lines: [[404.7, "Hg"], [435.8, "Hg"], [546.1, "Hg"], [568.8, "Na"], [577.0, "Hg"], [579.1, "Hg"], [589.3, "Na"], [616.0, "Na"]] },
-  { id: "neon", name: "Neon lamp", lines: [[540.056, "Ne"], [585.249, "Ne"], [588.190, "Ne"], [594.483, "Ne"], [607.434, "Ne"], [609.616, "Ne"], [614.306, "Ne"], [616.359, "Ne"], [621.728, "Ne"], [626.650, "Ne"], [630.479, "Ne"], [633.443, "Ne"], [638.299, "Ne"], [640.225, "Ne"], [650.653, "Ne"], [653.288, "Ne"], [659.895, "Ne"], [667.828, "Ne"], [671.704, "Ne"], [692.947, "Ne"], [703.241, "Ne"], [717.394, "Ne"], [724.517, "Ne"], [743.890, "Ne"]] },
+/* ---------------- Reference library ---------------- */
+// kind: nm = wavelength (nm), wn = absolute wavenumber / IR (cm-1), shift = Raman shift (cm-1)
+// peaks: [position, relative height 0..1, label]
+const REFS = [
+  // Atomic emission
+  { id: "h-balmer", cat: "Atomic emission", name: "Hydrogen, Balmer series", kind: "nm", note: "air wavelengths", peaks: [
+    [656.279, 1, "H-alpha"], [486.135, 0.35, "H-beta"], [434.047, 0.16, "H-gamma"], [410.173, 0.09, "H-delta"],
+    [397.007, 0.06, "H-epsilon"], [388.905, 0.05, "H-zeta"], [383.539, 0.04, "H-eta"], [379.790, 0.03, "H10"], [377.063, 0.03, "H11"], [364.6, 0.02, "series limit"]] },
+  { id: "h-lyman", cat: "Atomic emission", name: "Hydrogen, Lyman series", kind: "nm", note: "vacuum UV, vacuum wavelengths", peaks: [
+    [121.567, 1, "Ly-alpha"], [102.572, 0.3, "Ly-beta"], [97.254, 0.15, "Ly-gamma"], [94.974, 0.08, "Ly-delta"], [93.780, 0.05, "Ly-epsilon"], [91.175, 0.03, "series limit"]] },
+  { id: "h-paschen", cat: "Atomic emission", name: "Hydrogen, Paschen series", kind: "nm", note: "near IR, air wavelengths", peaks: [
+    [1875.10, 1, "Pa-alpha"], [1281.81, 0.5, "Pa-beta"], [1093.82, 0.3, "Pa-gamma"], [1004.94, 0.2, "Pa-delta"], [954.62, 0.12, "Pa-epsilon"], [820.4, 0.05, "series limit"]] },
+  { id: "he", cat: "Atomic emission", name: "Helium", kind: "nm", note: "He I, air", peaks: [
+    [388.865, 0.6], [402.619, 0.1], [438.793, 0.08], [447.148, 0.5], [471.314, 0.15], [492.193, 0.2], [501.568, 0.4], [504.774, 0.08], [587.562, 1, "D3"], [667.815, 0.4], [706.519, 0.4], [728.135, 0.12]] },
+  { id: "ne", cat: "Atomic emission", name: "Neon", kind: "nm", note: "Ne I, air; common calibration lamp", peaks: [
+    [540.056, 0.3], [585.249, 0.8], [588.190, 0.3], [594.483, 0.4], [597.553, 0.2], [603.000, 0.2], [607.434, 0.3], [609.616, 0.4], [614.306, 0.5],
+    [616.359, 0.3], [621.728, 0.2], [626.650, 0.3], [630.479, 0.3], [633.443, 0.4], [638.299, 0.4], [640.225, 1], [650.653, 0.5], [653.288, 0.3],
+    [659.895, 0.3], [667.828, 0.3], [671.704, 0.3], [692.947, 0.4], [703.241, 0.6], [717.394, 0.2], [724.517, 0.4], [743.890, 0.2]] },
+  { id: "ar", cat: "Atomic emission", name: "Argon", kind: "nm", note: "Ar I, air; common calibration lamp", peaks: [
+    [696.543, 0.5], [706.722, 0.4], [714.704, 0.15], [727.294, 0.3], [738.398, 0.4], [750.387, 0.7], [751.465, 0.5], [763.511, 1], [772.376, 0.5],
+    [794.818, 0.5], [800.616, 0.5], [801.479, 0.4], [810.369, 0.6], [811.531, 0.9], [826.452, 0.4], [840.821, 0.4], [842.465, 0.5], [852.144, 0.3],
+    [866.794, 0.1], [912.297, 0.8], [922.450, 0.4]] },
+  { id: "hg", cat: "Atomic emission", name: "Mercury", kind: "nm", note: "Hg I, air; fluorescent lamps, Hg-Ar calibration", peaks: [
+    [253.652, 1], [296.728, 0.15], [302.150, 0.1], [313.155, 0.3], [334.148, 0.05], [365.015, 0.5], [404.656, 0.5], [407.783, 0.1],
+    [435.833, 0.8], [546.074, 0.9], [576.960, 0.3], [579.066, 0.3]] },
+  { id: "na", cat: "Atomic emission", name: "Sodium", kind: "nm", note: "Na I, air", peaks: [
+    [588.995, 1, "D2"], [589.592, 0.5, "D1"], [818.326, 0.12], [819.482, 0.15]] },
+
+  // Solar
+  { id: "fraunhofer", cat: "Solar", name: "Fraunhofer lines", kind: "nm", note: "solar absorption lines, air", peaks: [
+    [759.370, 0.7, "A (O2)"], [686.719, 0.6, "B (O2)"], [656.281, 0.8, "C (H-alpha)"], [627.661, 0.4, "a (O2)"], [589.592, 0.8, "D1 (Na)"],
+    [588.995, 0.9, "D2 (Na)"], [527.039, 0.5, "E2 (Fe)"], [518.362, 0.6, "b1 (Mg)"], [517.270, 0.5, "b2 (Mg)"], [486.134, 0.7, "F (H-beta)"],
+    [430.790, 0.6, "G (Fe/Ca)"], [434.047, 0.5, "G' (H-gamma)"], [396.847, 1, "H (Ca II)"], [393.366, 1, "K (Ca II)"]] },
+
+  // Lasers
+  { id: "lasers", cat: "Lasers", name: "Common laser lines", kind: "nm", note: "nominal wavelengths", peaks: [
+    [405, 1, "405 diode"], [457.9, 1, "457.9 Ar+"], [488.0, 1, "488.0 Ar+"], [514.5, 1, "514.5 Ar+"], [532.0, 1, "532 Nd:YAG x2"], [632.8, 1, "632.8 HeNe"],
+    [785, 1, "785 diode"], [830, 1, "830 diode"], [1064, 1, "1064 Nd:YAG"]] },
+
+  // Near-IR and visible absorption (Weyer & Lo, "Spectra-Structure Correlations in the Near-infrared",
+  // Handbook of Vibrational Spectroscopy, Wiley 2006; water visible overtones: Pope & Fry 1997 via Wikipedia)
+  { id: "nir-water", cat: "Near-IR and visible absorption", name: "Water, liquid (NIR)", kind: "wn", note: "Weyer & Lo 2006; 14300 from Wikipedia", peaks: [
+    [5150, 1, "1940 nm (stretch + bend)"], [6900, 0.6, "1450 nm (stretch comb.)"], [8330, 0.3, "1200 nm"], [10300, 0.25, "970 nm (stretch comb.)"], [14300, 0.1, "698 nm (3rd ovt)"]] },
+  { id: "vis-water", cat: "Near-IR and visible absorption", name: "Water, visible overtones (predicted)", kind: "nm", note: "Pope & Fry 1997, predicted positions", peaks: [
+    [742, 0.4], [662, 0.3], [605, 0.3], [550, 0.2], [514, 0.15]] },
+  { id: "nir-oh", cat: "Near-IR and visible absorption", name: "Alcohol O-H (NIR)", kind: "wn", note: "Weyer & Lo 2006; general alcohol values, not compound specific", peaks: [
+    [7090, 0.6, "free OH 1st ovt (1410 nm)"], [6850, 0.8, "bonded OH 1st ovt, broad from"], [6240, 0.8, "bonded OH 1st ovt, broad to"],
+    [5090, 0.5, "OH str + CH bend"], [4960, 0.5, "OH str + OH bend"], [4710, 0.5, "OH str + CO str"],
+    [9550, 0.3, "bonded OH 2nd ovt"], [10400, 0.3, "free OH 2nd ovt"], [13500, 0.15, "free OH 3rd ovt"]] },
+  { id: "nir-ch", cat: "Near-IR and visible absorption", name: "Alkyl C-H (NIR)", kind: "wn", note: "Weyer & Lo 2006; n-alkanes in CCl4", peaks: [
+    [5907, 0.8, "CH3 1st ovt asym"], [5870, 0.7, "CH3 1st ovt sym"], [5807, 0.8, "CH2 1st ovt asym"], [5674, 0.7, "CH2 1st ovt sym"],
+    [8673, 0.3, "CH3 2nd ovt sym"], [8503, 0.3, "CH2 2nd ovt sym"], [8389, 0.4, "CH3 2nd ovt asym"], [8264, 0.4, "CH2 2nd ovt asym"],
+    [10965, 0.2, "CH 3rd ovt"], [10764, 0.2, "CH 3rd ovt"], [13386, 0.1, "CH 4th ovt"], [13123, 0.1, "CH 4th ovt"],
+    [7184, 0.5, "2xCH str + CH bend"], [7082, 0.5, "2xCH str + CH bend"], [4334, 1, "CH str + CH2 bend"], [4260, 1, "CH str + CH2 bend"]] },
+  { id: "vis-cuamm", cat: "Near-IR and visible absorption", name: "Copper sulfate + ammonia, [Cu(NH3)4]2+", kind: "nm", note: "d-d band, strong 550-650 nm, max 600-620 nm (nominally 610); ULM Chem 1010 lab manual", peaks: [
+    [550, 0.5, "strong abs from"], [610, 1, "abs max (600-620)"], [650, 0.5, "strong abs to"]] },
+  { id: "vis-dyes", cat: "Near-IR and visible absorption", name: "Brilliant Blue FCF (E133) max", kind: "nm", note: "FAO/WHO spec: 629 nm in 0.04 M ammonium acetate", peaks: [[629, 1, "abs max"]] },
+
+  // IR
+  { id: "ir-water", cat: "Infrared (absorption)", name: "Water, liquid", kind: "wn", peaks: [[3400, 1, "O-H str (broad)"], [2125, 0.05, "combination"], [1640, 0.4, "bend"], [700, 0.6, "libration (broad)"]] },
+  { id: "ir-co2", cat: "Infrared (absorption)", name: "CO2, gas", kind: "wn", peaks: [[3715, 0.05], [3610, 0.04], [2349, 1, "asym str"], [667, 0.5, "bend"]] },
+  { id: "ir-ethanol", cat: "Infrared (absorption)", name: "Ethanol", kind: "wn", peaks: [
+    [3330, 0.8, "O-H (broad)"], [2974, 0.7], [2928, 0.4], [2880, 0.3], [1450, 0.25], [1380, 0.3], [1088, 0.6], [1045, 1, "C-O str"], [880, 0.5]] },
+  { id: "ir-ipa", cat: "Infrared (absorption)", name: "Isopropanol", kind: "wn", peaks: [
+    [3340, 0.8, "O-H (broad)"], [2970, 0.9], [1379, 0.4], [1160, 0.5], [1130, 0.6], [950, 0.7], [817, 0.4]] },
+  { id: "ir-methanol", cat: "Infrared (absorption)", name: "Methanol", kind: "wn", peaks: [[3330, 0.8, "O-H (broad)"], [2945, 0.5], [2833, 0.5], [1450, 0.3], [1030, 1, "C-O str"]] },
+  { id: "ir-acetone", cat: "Infrared (absorption)", name: "Acetone", kind: "wn", peaks: [[3005, 0.1], [1715, 1, "C=O"], [1420, 0.3], [1365, 0.6], [1220, 0.6], [1092, 0.1], [530, 0.2]] },
+  { id: "ir-polystyrene", cat: "Infrared (absorption)", name: "Polystyrene film", kind: "wn", note: "common FTIR check standard", peaks: [
+    [3082, 0.2], [3060, 0.4], [3026, 0.6], [2923, 0.8], [2849.5, 0.4], [1942.9, 0.1], [1601.2, 0.4], [1583.0, 0.15], [1493, 0.8], [1452, 0.7],
+    [1154.5, 0.15], [1028.3, 0.3], [906.7, 0.25], [757, 0.9], [698, 1]] },
 ];
+
+const TRACE_COLORS = ["#2563eb", "#dc4a26", "#15936b", "#c2347a", "#c98a07", "#7c4ddb", "#0e98a8", "#6b7a2a", "#9a5b2e", "#4b6fa8"];
+const REF_COLORS = ["#a1662c", "#5466c4", "#278f80", "#b4466c", "#6d7d2c", "#8452ad", "#3a80b3", "#b05a26", "#5f7a90", "#9b4f9b"];
+const KIND_LABEL = { nm: "nm", um: "um", wn: "cm-1", shift: "cm-1" };
 
 /* ---------------- State ---------------- */
 const state = {
-  img: null,           // { w, h, px: Float32Array, name, info, example }
-  band: { top: 0, bot: 0 },
-  bgOn: false, bgW: 30, tilt: 0, smooth: 0, flipH: false,
-  cal: { mode: "nuview", reading: 5.0, a: 285.4, b: 54.64, disp: 0.040, ref: 968, points: [], order: 1 },
-  units: "nm", title: "", normalize: true, colorFill: true, showStrip: true,
-  groupsOn: new Set(["sun"]),
-  ref: null,           // { name, nm: Float64Array, y: Float64Array }
-  refShow: false, refDivide: false,
-  profile: null,       // Float64Array, per column
-  marks: [],           // { px }
-  tool: "zoom",        // zoom | pan | mark | cal
-  view: null,          // [lo, hi] in nm, null = full
-  pending: null,       // calibration click awaiting a wavelength: { px }
+  datasets: [],
+  axis: "cm",
+  laser: 532,
+  normalize: false,
+  offset: 0,
+  lineWidth: 1.25,
+  visBand: true,
+  clipOn: false,
+  clipMax: 3.5,
+  autoY: true,
+  reverse: false,
+  markMode: false,
+  dragmode: "zoom",
+  refsOn: new Map(),     // id -> color
+  refLabels: true,
+  customRefs: [],
+  marks: [],             // {ds, i}
+  view: { x: null, y: null },
 };
+let nextId = 1;
+let colorCursor = 0;
+let refColorCursor = 0;
 
 const $ = (id) => document.getElementById(id);
 const gd = $("plot");
+
+function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+function recall(key, dflt) { try { const v = localStorage.getItem(key); return v == null ? dflt : JSON.parse(v); } catch (e) { return dflt; } }
+
 let toastTimer;
-function toast(msg, ms = 4000) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms); }
-function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
-function recall(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
-function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
-const uf = () => (state.units === "A" ? 10 : 1);
-const fmtL = (nm) => (state.units === "A" ? (nm * 10).toFixed(1) : nm.toFixed(2));
-function readingLD(r) { const lines = Math.floor(r / 0.5 + 1e-9); return `${lines} + ${Math.round((r - lines * 0.5) / 0.01)}`; }
+function toast(msg, ms = 3500) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
 
-/* ---------------- Image loading: FITS and browser images ---------------- */
-function parseFits(buf) {
+/* ---------------- Unit conversion ---------------- */
+function convFn(kind, axis, laser) {
+  const L = 1e7 / laser;
+  if (axis === "nm") {
+    if (kind === "nm") return (x) => x;
+    if (kind === "um") return (x) => x * 1000;
+    if (kind === "wn") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "shift") return (x) => { const a = L - x; return a > 0 ? 1e7 / a : NaN; };
+  } else {
+    if (kind === "nm") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "um") return (x) => (x > 0 ? 1e4 / x : NaN);
+    return (x) => x;
+  }
+}
+function axisTitle() {
+  if (state.axis === "nm") return "Wavelength (nm)";
+  const kinds = new Set(state.datasets.filter((d) => d.visible).map((d) => d.kind));
+  if (kinds.size === 1 && kinds.has("wn")) return "Wavenumber (cm<sup>-1</sup>)";
+  return "Wavenumber (cm<sup>-1</sup>)";
+}
+
+/* ---------------- Parsing ---------------- */
+const NUM_RE = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+const DEC_COMMA_RE = /^[-+]?\d+,\d+([eE][-+]?\d+)?$/;
+
+function tokenize(line, d) {
+  let toks = d === " " ? line.trim().split(/\s+/) : line.split(d);
+  toks = toks.map((s) => s.trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim());
+  while (toks.length && toks[toks.length - 1] === "") toks.pop();
+  if (d !== ",") toks = toks.map((s) => (DEC_COMMA_RE.test(s) ? s.replace(",", ".") : s));
+  return toks;
+}
+function numericRow(toks) {
+  if (toks.length < 2) return null;
+  const out = new Array(toks.length);
+  for (let i = 0; i < toks.length; i++) {
+    if (!NUM_RE.test(toks[i])) return null;
+    out[i] = +toks[i];
+  }
+  return out;
+}
+
+function parseDelimited(text) {
+  const lines = text.split(/\r\n|\n|\r/);
+  const nonEmpty = [];
+  for (let i = 0; i < lines.length; i++) if (lines[i].trim() && !/^\s*[#%!]/.test(lines[i])) nonEmpty.push(i);
+  if (!nonEmpty.length) throw new Error("The file is empty.");
+  const step = Math.max(1, Math.floor(nonEmpty.length / 400));
+  let best = null;
+  for (const d of ["\t", ",", ";", " "]) {
+    let score = 0; const counts = {};
+    for (let k = 0; k < nonEmpty.length; k += step) {
+      const r = numericRow(tokenize(lines[nonEmpty[k]], d));
+      if (r) { score++; counts[r.length] = (counts[r.length] || 0) + 1; }
+    }
+    if (score && (!best || score > best.score)) {
+      const ncols = +Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      best = { d, score, ncols };
+    }
+  }
+  if (!best) throw new Error("No rows with two or more numeric columns were found.");
+  const { d, ncols } = best;
+  const cols = Array.from({ length: ncols }, () => []);
+  let firstData = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim() || /^\s*[#%!]/.test(line)) continue;
+    const r = numericRow(tokenize(line, d));
+    if (!r || r.length < ncols) continue;
+    if (firstData < 0) firstData = i;
+    for (let c = 0; c < ncols; c++) cols[c].push(r[c]);
+  }
+  const pre = lines.slice(0, firstData).filter((l) => l.trim());
+  let names = null;
+  for (let k = pre.length - 1; k >= 0; k--) {
+    const t = tokenize(pre[k].replace(/^\s*[#%!]+\s*/, ""), d);
+    if (t.length >= ncols) { names = t.slice(0, ncols); break; }
+    if (t.length >= 2) break;
+  }
+  if (!names) names = Array.from({ length: ncols }, (_, i) => (i === 0 ? "X" : "Column " + (i + 1)));
+  names = names.map((n, i) => n || "Column " + (i + 1));
+  return {
+    cols: cols.map((c) => Float64Array.from(c)),
+    names,
+    preamble: pre.join("\n"),
+    rows: cols[0].length,
+  };
+}
+
+/* JCAMP-DX, including ASDF compressed (SQZ / DIF / DUP) XYDATA */
+function decodeAsdfLine(line) {
+  const toks = [];
+  let i = 0; const n = line.length;
+  const SQZ = "@ABCDEFGHI", SQZN = "abcdefghi", DIF = "%JKLMNOPQR", DIFN = "jklmnopqr", DUP = "STUVWXYZs";
+  while (i < n) {
+    const c = line[i];
+    if (c === " " || c === "," || c === "\t" || c === ";") { i++; continue; }
+    if (c === "?") { toks.push({ t: "abs", v: NaN }); i++; continue; }
+    let j;
+    if (c === "+" || c === "-" || c === "." || (c >= "0" && c <= "9")) {
+      j = i + 1;
+      while (j < n && ((line[j] >= "0" && line[j] <= "9") || line[j] === ".")) j++;
+      if (j < n && (line[j] === "E" || line[j] === "e") && (line[j + 1] === "+" || line[j + 1] === "-")) {
+        j += 2; while (j < n && line[j] >= "0" && line[j] <= "9") j++;
+      }
+      toks.push({ t: "abs", v: parseFloat(line.slice(i, j)) }); i = j; continue;
+    }
+    let k;
+    const readDigits = (first) => { j = i + 1; while (j < n && ((line[j] >= "0" && line[j] <= "9") || line[j] === ".")) j++; return parseFloat(first + line.slice(i + 1, j)); };
+    if ((k = SQZ.indexOf(c)) >= 0) { toks.push({ t: "abs", v: readDigits(String(k)) }); i = j; continue; }
+    if ((k = SQZN.indexOf(c)) >= 0) { toks.push({ t: "abs", v: -readDigits(String(k + 1)) }); i = j; continue; }
+    if ((k = DIF.indexOf(c)) >= 0) { toks.push({ t: "dif", v: readDigits(String(k)) }); i = j; continue; }
+    if ((k = DIFN.indexOf(c)) >= 0) { toks.push({ t: "dif", v: -readDigits(String(k + 1)) }); i = j; continue; }
+    if ((k = DUP.indexOf(c)) >= 0) { toks.push({ t: "dup", v: readDigits(String(k + 1)) }); i = j; continue; }
+    i++;
+  }
+  const vals = []; let lastT = null; let lastDif = 0;
+  for (const tk of toks) {
+    if (tk.t === "abs") { vals.push(tk.v); lastT = "abs"; }
+    else if (tk.t === "dif") { vals.push((vals.length ? vals[vals.length - 1] : 0) + tk.v); lastT = "dif"; lastDif = tk.v; }
+    else if (tk.t === "dup") {
+      for (let r = 1; r < tk.v; r++) vals.push(lastT === "dif" ? vals[vals.length - 1] + lastDif : vals[vals.length - 1]);
+    }
+  }
+  return { vals, endsDif: lastT === "dif" };
+}
+
+function parseJcamp(text) {
+  const lines = text.split(/\r\n|\n|\r/);
+  const v = {}; let mode = null; const blocks = []; let pairs = [];
+  for (let raw of lines) {
+    const line = raw.replace(/\$\$.*$/, "");
+    const m = line.match(/^\s*##\s*([^=]+)=(.*)$/);
+    if (m) {
+      const key = m[1].toUpperCase().replace(/[\s\-\/_]/g, "");
+      if (mode && (blocks.length || pairs.length)) { if (key === "END") break; }
+      mode = null;
+      if (key === "XYDATA" && /X\+\+\(Y\.\.Y\)/i.test(m[2])) mode = "xydata";
+      else if (key === "XYPOINTS" || key === "PEAKTABLE" || key === "XYDATA") mode = "pairs";
+      else if (!(key in v)) v[key] = m[2].trim();
+      continue;
+    }
+    if (!mode || !line.trim()) continue;
+    if (mode === "xydata") blocks.push(decodeAsdfLine(line));
+    else for (const t of line.split(/[\s,;]+/)) if (t !== "" && NUM_RE.test(t)) pairs.push(+t);
+  }
+  const xf = parseFloat(v.XFACTOR) || 1, yf = parseFloat(v.YFACTOR) || 1;
+  let xs = [], ys = [];
+  if (blocks.length) {
+    const firstx = parseFloat(v.FIRSTX), lastx = parseFloat(v.LASTX), np = parseInt(v.NPOINTS, 10);
+    const lineYs = []; let prevDif = false;
+    for (const b of blocks) {
+      if (!b.vals.length) continue;
+      let y = b.vals.slice(1), skip = 0;
+      if (prevDif && y.length && lineYs.length) { y = y.slice(1); skip = 1; }
+      lineYs.push({ x: b.vals[0] * xf, y, skip });
+      prevDif = b.endsDif;
+    }
+    let dx;
+    if (isFinite(firstx) && isFinite(lastx) && np > 1) dx = (lastx - firstx) / (np - 1);
+    else if (lineYs.length > 1) dx = (lineYs[1].x - lineYs[0].x) / lineYs[0].y.length;
+    else dx = 1;
+    for (const L of lineYs) for (let j = 0; j < L.y.length; j++) { xs.push(L.x + (j + L.skip) * dx); ys.push(L.y[j] * yf); }
+  } else if (pairs.length >= 4) {
+    for (let i = 0; i + 1 < pairs.length; i += 2) { xs.push(pairs[i] * xf); ys.push(pairs[i + 1] * yf); }
+  } else throw new Error("No spectral data block found in this JCAMP-DX file.");
+  const xu = (v.XUNITS || "").toUpperCase();
+  const dt = ((v.DATATYPE || "") + " " + (v.DATACLASS || "")).toUpperCase();
+  let kind = null;
+  if (/1\/CM|CM-1|CM\^-1|WAVENUMBER/.test(xu)) kind = "wn";
+  else if (/NANOMET|^NM/.test(xu)) kind = "nm";
+  else if (/MICROM|MICRON|^UM/.test(xu)) kind = "um";
+  return {
+    cols: [Float64Array.from(xs), Float64Array.from(ys)],
+    names: [v.XUNITS || "X", v.YUNITS || "Y"],
+    preamble: "", rows: xs.length, title: v.TITLE, jcampKind: kind,
+  };
+}
+
+/* Bomem DA3 (PDP-11 / RSX-11) binary spectra: .SPC single beam, .LOG log ratio, etc.
+   512-byte blocks; blocks 1-3 header, data from byte 1536 as N DEC F_floating values (cm-1, evenly spaced). */
+function decF(w0, w1) {
+  const e = (w0 >> 7) & 0xff;
+  if (e === 0) return 0;
+  const m = ((w0 & 0x7f) * 65536 + w1 + 8388608) / 16777216;
+  return (w0 & 0x8000 ? -m : m) * Math.pow(2, e - 128);
+}
+function decD(w0, w1, w2, w3) {
+  const e = (w0 >> 7) & 0xff;
+  if (e === 0) return 0;
+  const m = ((w0 & 0x7f) + 128) / 256 + w1 / 16777216 + w2 / 1099511627776 + w3 / 72057594037927936;
+  return (w0 & 0x8000 ? -m : m) * Math.pow(2, e - 128);
+}
+function asciiAt(u8, off, len) {
+  let s = "";
+  for (let i = off; i < off + len && i < u8.length; i++) s += u8[i] >= 32 && u8[i] < 127 ? String.fromCharCode(u8[i]) : " ";
+  return s.replace(/\s+/g, " ").trim();
+}
+function parseBomem(buf, fname) {
   const u8 = new Uint8Array(buf);
-  const card = (i) => String.fromCharCode.apply(null, u8.subarray(i * 80, i * 80 + 80));
-  const hdr = {}; let i = 0, end = -1;
-  for (; i * 80 < u8.length; i++) {
-    const c = card(i), key = c.slice(0, 8).trim();
-    if (key === "END") { end = i; break; }
-    if (c[8] === "=") {
-      let v = c.slice(10).replace(/\/(?=(?:[^']*'[^']*')*[^']*$).*$/, "").trim();
-      if (/^'/.test(v)) v = v.replace(/^'|'\s*$/g, "").trim();
-      else if (v === "T" || v === "F") v = v === "T";
-      else if (v !== "" && !isNaN(+v)) v = +v;
-      hdr[key] = v;
+  if (u8.length < 1536 + 8 || u8.length % 512) return null;
+  const dv = new DataView(buf instanceof ArrayBuffer ? buf : u8.buffer);
+  const w = (i) => dv.getUint16(2 * i, true);
+  const d = (i) => decD(w(i), w(i + 1), w(i + 2), w(i + 3));
+  const blocks = w(0), n = w(1);
+  const first = d(3), last = d(7), dx = d(11);
+  // the file can be allocated larger than the header's block count (extra blocks hold leftover data)
+  if (blocks < 4 || blocks * 512 > u8.length || n < 2 || 1536 + 4 * n > blocks * 512) return null;
+  if (!(dx > 0) || !(last > first) || Math.abs(first + (n - 1) * dx - last) > 1.5 * dx) return null;
+  const x = new Float64Array(n), y = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    x[i] = first + i * dx;
+    y[i] = decF(dv.getUint16(1536 + 4 * i, true), dv.getUint16(1538 + 4 * i, true));
+  }
+  const date = asciiAt(u8, 128, 17).replace(/^(\S{9})(\S)/, "$1 $2");
+  const hw = [0, 1, 2, 3].map((k) => asciiAt(u8, 528 + 4 * k, 4)).filter(Boolean).join(" ");
+  const files = asciiAt(u8, 512 + 452, 60).replace(/ +\./g, ".");
+  const ext = (fname.match(/\.([A-Za-z0-9]+)(;\d+)?$/) || [])[1] || "";
+  const type = { 3: "single beam", 4: "settings/interferogram", 5: "absorbance (-log10 T)", 8: "transmittance (0-1)" }[w(55)] || `type code ${w(55)}`;
+  const notes = asciiAt(u8, 384, 128);
+  const info = [`Bomem DA3 ${ext.toUpperCase()}`.trim(), type, date, notes && `notes "${notes}"`, asciiAt(u8, 120, 8) && `apodization ${asciiAt(u8, 120, 8)}`, hw && `optics ${hw}`, files && `files ${files}`]
+    .filter(Boolean).join("; ");
+  return { cols: [x, y], names: ["Wavenumber (cm-1)", type], preamble: "", rows: n,
+    title: fname.replace(/;\d+$/, "").replace(/\.(bin)$/i, ""), jcampKind: "wn", info,
+    isSettings: w(55) === 4,
+    why: `Bomem DA3 binary: ${n.toLocaleString()} points, ${fmt(first)} to ${fmt(x[n - 1])} cm-1, step ${dx.toPrecision(6)}.` };
+}
+/* RSX-11 DMP text dumps: octal word lines ("000000    000027 004756 ...") or /HX byte lines printed right to left. */
+function parseDmpDump(text) {
+  const top = text.slice(0, 600);
+  if (!/Dump of /.test(top) || !/Virtual block/.test(top)) return null;
+  const head = text.match(/Dump of\s+(\S+)/);
+  const name = head ? head[1].replace(/^.*[\]:]/, "") : "dump";
+  const bytes = [];
+  for (const line of text.split(/\r?\n/)) {
+    let m = line.match(/^[0-7]{6}\s{2,}((?:[0-7]{6}\s*){1,8})$/);
+    if (m) { for (const t of m[1].trim().split(/\s+/)) { const v = parseInt(t, 8); bytes.push(v & 0xff, v >> 8); } continue; }
+    m = line.match(/^((?:[0-9A-F]{2} ){1,16})\s+[0-9A-F]{4}\s*$/);
+    if (m) bytes.push(...m[1].trim().split(" ").map((h) => parseInt(h, 16)).reverse());
+  }
+  return bytes.length ? { name, buf: new Uint8Array(bytes).buffer } : null;
+}
+
+/* ---------------- Unit detection ---------------- */
+function detectUnit(xs, header, preamble) {
+  const h = (header || "").toLowerCase();
+  const pre = (preamble || "").split("\n").filter((l) => /x.?unit|x.?axis|abscissa/i.test(l)).join(" ").toLowerCase();
+  const t = h + " " + pre;
+  let min = Infinity, max = -Infinity;
+  for (const x of xs) { if (x < min) min = x; if (x > max) max = x; }
+  const range = `${fmt(min)} to ${fmt(max)}`;
+  if (/cm\s*\^?\s*[-−]\s*1|cm-1|1\s*\/\s*cm|wave\s*number|\bcm\b/.test(t))
+    return { kind: "wn", confident: true, why: `Header says cm-1. Range ${range}.` };
+  if (/µm|\bum\b|micron|micromet/.test(t)) return { kind: "um", confident: true, why: `Header says microns. Range ${range}.` };
+  if (/\bnm\b|nanomet|wavelength|lambda/.test(t)) return { kind: "nm", confident: true, why: `Header says nm / wavelength. Range ${range}.` };
+  if (max <= 30 && min > 0) return { kind: "um", confident: false, why: `Values run ${range}, which looks like microns.` };
+  if (max > 4500) return { kind: "wn", confident: true, why: `Values reach ${fmt(max)}, which only makes sense as cm-1.` };
+  if (min < 150 && max > 400) return { kind: "wn", confident: true, why: `Values start at ${fmt(min)}, which fits cm-1 and not nm.` };
+  if (max > 3200) return { kind: "wn", confident: true, why: `Values reach ${fmt(max)}, typical of cm-1.` };
+  if (max <= 1100) return { kind: "nm", confident: false, why: `Values run ${range}. That fits UV-Vis wavelengths (nm), but could also be cm-1.` };
+  if (min >= 800) return { kind: "nm", confident: false, why: `Values run ${range}. That fits near-IR wavelengths (nm), but could also be cm-1.` };
+  return { kind: "wn", confident: false, why: `Values run ${range}. That most likely is cm-1, but nm is possible.` };
+}
+function fmt(v) { return Math.abs(v) >= 100 ? v.toFixed(1) : +v.toPrecision(4) + ""; }
+
+/* ---------------- Import flow ---------------- */
+let batchChoice = null;
+async function importFiles(files) {
+  batchChoice = null;
+  const list = Array.from(files);
+  for (let fi = 0; fi < list.length; fi++) {
+    const f = list[fi];
+    if (/\.json$/i.test(f.name)) { await loadSession(f); continue; }
+    let parsed;
+    try {
+      const buf = await f.arrayBuffer();
+      parsed = parseBomem(buf, f.name);
+      if (!parsed && buf.byteLength % 512 === 0) {
+        // A binary rebuilt from an RSX /HX dump without undoing its right-to-left rows has every 16-byte row reversed.
+        const r = new Uint8Array(buf.byteLength), src = new Uint8Array(buf);
+        for (let o = 0; o < r.length; o += 16) for (let k = 0; k < 16; k++) r[o + k] = src[o + 15 - k];
+        parsed = parseBomem(r.buffer, f.name);
+        if (parsed) parsed.why += " Byte order was scrambled (16-byte rows reversed, as printed by DMP /HX) and has been corrected.";
+      }
+      if (!parsed) {
+        const text = new TextDecoder().decode(buf);
+        const dmp = parseDmpDump(text);
+        if (dmp) {
+          parsed = parseBomem(dmp.buf, dmp.name);
+          if (!parsed) throw new Error("RSX dump read, but it is not a Bomem DA3 spectrum file.");
+        } else if (/\.spc$/i.test(f.name)) {
+          throw new Error("Not a Bomem DA3 .SPC file. Thermo/Galactic SPC is not supported; export it as CSV or JCAMP-DX.");
+        } else {
+          const isJ = /\.(jdx|dx|jcamp)$/i.test(f.name) || /^\s*##/.test(text.slice(0, 200));
+          parsed = isJ ? parseJcamp(text) : parseDelimited(text);
+        }
+      }
+      if (parsed.isSettings) throw new Error("Bomem settings (.SET) file: it holds the scan setup, not a spectrum.");
+    } catch (e) {
+      toast(`${f.name}: ${e.message}`, 6000); continue;
+    }
+    if (parsed.rows < 2) { toast(`${f.name}: fewer than two data rows.`, 6000); continue; }
+    const base = (parsed.title || f.name).replace(/\.[^.]+$/, "");
+    const det = parsed.jcampKind
+      ? { kind: parsed.jcampKind, confident: true, why: parsed.why || "Units read from the JCAMP-DX header." }
+      : detectUnit(parsed.cols[0], parsed.names[0], parsed.preamble);
+    let choice;
+    const needAsk = !det.confident || parsed.cols.length > 2;
+    if (needAsk && batchChoice) choice = { x: 0, ys: [1], kind: batchChoice.kind };
+    else if (needAsk) choice = await askImport(f.name, parsed, det, list.length - fi - 1);
+    else choice = { x: 0, ys: [1], kind: det.kind };
+    if (!choice) continue;
+    addFromParsed(base, parsed, choice);
+    if (!needAsk) toast(`${base}: ${parsed.rows.toLocaleString()} points, ${KIND_LABEL[choice.kind]}. ${det.why}`, 5000);
+  }
+}
+
+function askImport(fname, parsed, det, remaining) {
+  return new Promise((resolve) => {
+    const dlg = $("importDlg");
+    $("iTitle").textContent = `Import ${fname}`;
+    $("iWhy").textContent = (det.confident ? "" : "Not sure about the X units. ") + det.why + ` ${parsed.rows.toLocaleString()} rows.`;
+    const ncol = parsed.cols.length;
+    const nPrev = Math.min(6, parsed.rows);
+    let html = "<table><tr>" + parsed.names.map((n) => `<th>${esc(n)}</th>`).join("") + "</tr>";
+    for (let r = 0; r < nPrev; r++) html += "<tr>" + parsed.cols.map((c) => `<td>${c[r]}</td>`).join("") + "</tr>";
+    $("iPreview").innerHTML = html + "</table>";
+    $("iColsWrap").hidden = ncol <= 2;
+    $("iX").innerHTML = parsed.names.map((n, i) => `<option value="${i}">${esc(n)}</option>`).join("");
+    $("iY").innerHTML = parsed.names.map((n, i) => `<label class="check"><input type="checkbox" value="${i}" ${i === 1 ? "checked" : ""}>${esc(n)}</label>`).join("");
+    for (const r of dlg.querySelectorAll('input[name="iu"]')) r.checked = r.value === det.kind;
+    $("iAllWrap").hidden = remaining === 0;
+    $("iAll").checked = false;
+    const onClose = () => {
+      dlg.removeEventListener("close", onClose);
+      if (dlg.returnValue !== "ok") return resolve(null);
+      const x = +$("iX").value;
+      let ys = [...$("iY").querySelectorAll("input:checked")].map((c) => +c.value).filter((i) => i !== x);
+      if (ncol <= 2) ys = [x === 0 ? 1 : 0];
+      if (!ys.length) { toast("No Y column selected; file skipped."); return resolve(null); }
+      const kind = dlg.querySelector('input[name="iu"]:checked')?.value || det.kind;
+      if ($("iAll").checked) batchChoice = { kind };
+      resolve({ x, ys, kind });
+    };
+    dlg.returnValue = "";
+    dlg.addEventListener("close", onClose);
+    dlg.showModal();
+  });
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+function addFromParsed(base, parsed, choice) {
+  const hadUser = state.datasets.some((d) => !d.example);
+  if (!hadUser) {
+    const ex = state.datasets.filter((d) => d.example).map((d) => d.id);
+    state.datasets = state.datasets.filter((d) => !d.example);
+    state.marks = state.marks.filter((m) => !ex.includes(m.ds));
+    if (ex.length) { state.refsOn.clear(); refColorCursor = 0; }
+  }
+  for (const yi of choice.ys) {
+    const name = choice.ys.length > 1 ? `${base}: ${parsed.names[yi]}` : base;
+    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind, info: parsed.info });
+  }
+  if (!hadUser) {
+    state.axis = choice.kind === "nm" ? "nm" : "cm";
+    syncControls();
+  }
+  state.view = { x: null, y: null };
+  renderAll();
+}
+
+function addDataset({ name, x, y, kind, example = false, info = "" }) {
+  const ds = {
+    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true, info,
+    color: TRACE_COLORS[colorCursor++ % TRACE_COLORS.length],
+    laser: state.laser,
+  };
+  applyYMode(ds);
+  state.datasets.push(ds);
+  return ds;
+}
+
+// ymode: none | flip (mirror within its own range) | t2a (transmittance -> absorbance) | a2t (absorbance -> %T)
+function applyYMode(ds) {
+  const r = ds.yRaw, n = r.length, y = new Float64Array(n);
+  let lo = Infinity, hi = -Infinity;
+  for (const v of r) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (ds.ymode === "flip") for (let i = 0; i < n; i++) y[i] = lo + hi - r[i];
+  else if (ds.ymode === "t2a") {
+    const pct = hi > 1.5;
+    for (let i = 0; i < n; i++) { const t = pct ? r[i] / 100 : r[i]; y[i] = t > 0 ? -Math.log10(t) : NaN; }
+  } else if (ds.ymode === "a2t") for (let i = 0; i < n; i++) y[i] = 100 * Math.pow(10, -r[i]);
+  else y.set(r);
+  let ymax = -Infinity;
+  for (const v of y) if (v > ymax) ymax = v;
+  ds.y = y;
+  ds.ymax = ymax > 0 ? ymax : 1;
+}
+
+/* ---------------- Plot building ---------------- */
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function plotted(ds, visIndex, unit) {
+  const f = convFn(ds.kind, state.axis, ds.kind === "shift" ? ds.laser : state.laser);
+  const n = ds.x.length;
+  const px = new Float64Array(n), py = new Float64Array(n);
+  const hide = state.clipOn ? state.clipMax : Infinity;
+  let ymax = ds.ymax;
+  if (state.clipOn) { ymax = -Infinity; for (const v of ds.y) if (v <= hide && v > ymax) ymax = v; if (!(ymax > 0)) ymax = 1; }
+  const s = state.normalize ? 1 / ymax : 1;
+  const off = visIndex * state.offset * unit;
+  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = ds.y[i] > hide ? NaN : ds.y[i] * s + off; }
+  return { px, py };
+}
+
+let cache = new Map();
+function computeAll() {
+  cache = new Map();
+  const vis = state.datasets.filter((d) => d.visible);
+  const unit = state.normalize ? 1 : Math.max(1e-12, ...vis.map((d) => (state.clipOn ? Math.min(d.ymax, state.clipMax) : d.ymax)));
+  vis.forEach((d, i) => cache.set(d.id, plotted(d, i, unit)));
+}
+
+function fullXExtent() {
+  let lo = Infinity, hi = -Infinity;
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const c = cache.get(d.id);
+    for (const v of c.px) if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  }
+  if (lo === Infinity) {
+    for (const r of activeRefs()) {
+      const f = convFn(r.kind, state.axis, state.laser);
+      for (const p of r.peaks) { const v = f(p[0]); if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    }
+    if (lo !== Infinity) { const pad = Math.max((hi - lo) * 0.08, state.axis === "nm" ? 10 : 50); return [lo - pad, hi + pad]; }
+    return state.axis === "nm" ? [350, 800] : [100, 3600];
+  }
+  return [lo, hi];
+}
+
+function yExtent(xr) {
+  let lo = Infinity, hi = -Infinity;
+  const [a, b] = xr || [-Infinity, Infinity];
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const { px, py } = cache.get(d.id);
+    for (let i = 0; i < px.length; i++) {
+      const x = px[i];
+      if (x >= a && x <= b) { const y = py[i]; if (y < lo) lo = y; if (y > hi) hi = y; }
     }
   }
-  if (hdr.SIMPLE !== true || end < 0) throw new Error("Not a FITS file.");
-  const off = Math.ceil((end + 1) * 80 / 2880) * 2880;
-  const bitpix = hdr.BITPIX, nax = hdr.NAXIS, bz = hdr.BZERO || 0, bs = hdr.BSCALE == null ? 1 : hdr.BSCALE;
-  const dims = []; for (let k = 1; k <= nax; k++) dims.push(hdr["NAXIS" + k]);
-  const n = dims.reduce((a, b) => a * b, 1);
-  const bpp = Math.abs(bitpix) / 8;
-  if (off + n * bpp > u8.length) throw new Error("FITS data is shorter than the header says.");
-  const dv = new DataView(buf, off);
-  const rd = { 8: (k) => dv.getUint8(k), 16: (k) => dv.getInt16(k * 2), 32: (k) => dv.getInt32(k * 4), "-32": (k) => dv.getFloat32(k * 4), "-64": (k) => dv.getFloat64(k * 8) }[bitpix];
-  if (!rd) throw new Error(`Unsupported FITS BITPIX ${bitpix}.`);
-  const data = new Float32Array(n);
-  for (let k = 0; k < n; k++) data[k] = rd(k) * bs + bz;
-  return { hdr, dims, data };
-}
-function fitsToImage(f, name) {
-  const [w, h, planes = 1] = f.dims;
-  const px = new Float32Array(w * h);
-  // FITS rows run bottom-up; store top-down. Colour planes are averaged.
-  for (let p = 0; p < planes; p++)
-    for (let y = 0; y < h; y++) {
-      const src = p * w * h + (h - 1 - y) * w, dst = y * w;
-      for (let x = 0; x < w; x++) px[dst + x] += f.data[src + x] / planes;
-    }
-  const extra = [f.hdr.OBJECT, f.hdr["DATE-OBS"], f.hdr.EXPTIME != null ? `exp ${f.hdr.EXPTIME}s` : ""].filter(Boolean).join(", ");
-  return { w, h, px, name, info: `${w} x ${h} FITS, BITPIX ${f.hdr.BITPIX}${planes > 1 ? `, ${planes} planes averaged` : ""}${extra ? "; " + extra : ""}`, hdr: f.hdr };
-}
-async function rasterToImage(blobOrUrl, name) {
-  const bmp = typeof blobOrUrl === "string"
-    ? await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("Could not decode the image.")); im.src = blobOrUrl; })
-    : await createImageBitmap(blobOrUrl);
-  const w = bmp.width, h = bmp.height, cv = document.createElement("canvas");
-  cv.width = w; cv.height = h;
-  const ctx = cv.getContext("2d"); ctx.drawImage(bmp, 0, 0);
-  const d = ctx.getImageData(0, 0, w, h).data, px = new Float32Array(w * h);
-  for (let k = 0, j = 0; k < px.length; k++, j += 4) px[k] = (d[j] + d[j + 1] + d[j + 2]) / 3;
-  return { w, h, px, name, info: `${w} x ${h}, 8-bit (browser image; FITS keeps more precision)` };
-}
-async function openImageFile(f) {
-  try {
-    const head = new Uint8Array(await f.slice(0, 9).arrayBuffer());
-    const isFits = String.fromCharCode(...head) === "SIMPLE  =" || /\.(fits?|fts)$/i.test(f.name);
-    let img;
-    if (isFits) {
-      const fits = parseFits(await f.arrayBuffer());
-      if (fits.dims.length === 1) { setReference(fitsToSpectrum(fits, f.name)); toast(`${f.name} is a 1D spectrum; loaded it as the reference.`); return; }
-      img = fitsToImage(fits, f.name);
-    } else img = await rasterToImage(f, f.name);
-    setImage(img);
-    toast(`${f.name}: ${img.info}`);
-  } catch (e) { toast(`${f.name}: ${e.message}`, 7000); }
+  if (lo === Infinity) return [0, 1];
+  if (lo === hi) { lo -= 0.5; hi += 0.5; }
+  const pad = (hi - lo) * 0.06;
+  return [lo - pad, hi + pad];
 }
 
-function setImage(img) {
-  state.img = img;
-  if (state.flipH) flipImage(img);
-  state.marks = []; state.view = null; state.pending = null; $("pickForm").hidden = true;
-  autoBand();
-  buildDisplay();
-  $("imgInfo").innerHTML = `${img.example ? '<span class="tag">example</span> ' : ""}${esc(img.name)}<br>${esc(img.info)}`;
-  syncExtraction();
-  recompute();
-}
-function flipImage(img) {
-  const { w, h, px } = img;
-  for (let y = 0; y < h; y++) px.subarray(y * w, y * w + w).reverse();
+function activeRefs() {
+  const all = [...REFS, ...state.customRefs];
+  return all.filter((r) => state.refsOn.has(r.id)).map((r) => ({ ...r, color: state.refsOn.get(r.id) }));
 }
 
-/* ---------------- Extraction ---------------- */
-function rowMeans(img) {
-  const { w, h, px } = img, m = new Float64Array(h);
-  for (let y = 0; y < h; y++) { let s = 0; for (let x = 0; x < w; x++) s += px[y * w + x]; m[y] = s / w; }
-  return m;
-}
-function autoBand() {
-  const img = state.img; if (!img) return;
-  const m = rowMeans(img);
-  let lo = Infinity, hi = -Infinity, ih = 0;
-  for (let y = 0; y < img.h; y++) { if (m[y] < lo) lo = m[y]; if (m[y] > hi) { hi = m[y]; ih = y; } }
-  const thr = lo + 0.4 * (hi - lo);
-  let t = ih, b = ih;
-  while (t > 0 && m[t - 1] > thr) t--;
-  while (b < img.h - 1 && m[b + 1] > thr) b++;
-  const trim = Math.round((b - t) * 0.04);
-  state.band = { top: t + trim, bot: Math.max(t + trim, b - trim) };
-}
-function columnProfile(rows, shear, yc) {
-  const { w, px } = state.img, out = new Float64Array(w);
-  if (!rows.length) return out;
-  for (const y of rows) {
-    const off = shear * (y - yc), base = y * w;
-    const i0 = Math.floor(off), t = off - i0;
-    for (let x = 0; x < w; x++) {
-      let a = x + i0; if (a < 0) a = 0; else if (a > w - 1) a = w - 1;
-      let b = a + 1; if (b > w - 1) b = w - 1;
-      out[x] += px[base + a] * (1 - t) + px[base + b] * t;
-    }
-  }
-  for (let x = 0; x < w; x++) out[x] /= rows.length;
-  return out;
-}
-function range(a, b, step = 1) { const r = []; for (let y = a; y <= b; y += step) r.push(y); return r; }
-function extract() {
-  const img = state.img; if (!img) return null;
-  const { top, bot } = state.band, yc = (top + bot) / 2, s = state.tilt / 100;
-  let prof = columnProfile(range(top, bot), s, yc);
-  if (state.bgOn) {
-    const gap = Math.max(3, Math.round((bot - top) * 0.08)), bw = state.bgW;
-    const rows = [...range(Math.max(0, top - gap - bw), top - gap - 1), ...range(bot + gap + 1, Math.min(img.h - 1, bot + gap + bw))];
-    if (rows.length) { const bg = columnProfile(rows, s, yc); for (let x = 0; x < prof.length; x++) prof[x] -= bg[x]; }
-  }
-  if (state.smooth > 0) prof = gaussSmooth(prof, state.smooth);
-  return prof;
-}
-function gaussSmooth(y, sigma) {
-  const r = Math.ceil(sigma * 3), k = [];
-  let s = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-0.5 * (i / sigma) ** 2); k.push(v); s += v; }
-  const n = y.length, out = new Float64Array(n);
-  for (let x = 0; x < n; x++) { let a = 0, ws = 0; for (let i = -r; i <= r; i++) { const j = x + i; if (j >= 0 && j < n) { a += y[j] * k[i + r]; ws += k[i + r]; } } out[x] = a / ws; }
-  return out;
-}
-function autoTilt() {
-  const img = state.img; if (!img) return;
-  const { top, bot } = state.band, yc = (top + bot) / 2;
-  const step = Math.max(1, Math.floor((bot - top) / 60)), rows = range(top, bot, step);
-  let best = 0, bestScore = -Infinity;
-  for (let t = -6; t <= 6.0001; t += 0.1) {
-    const p = columnProfile(rows, t / 100, yc);
-    let sc = 0; for (let x = 1; x < p.length - 1; x++) { const d = p[x - 1] - 2 * p[x] + p[x + 1]; sc += d * d; }
-    if (sc > bestScore) { bestScore = sc; best = t; }
-  }
-  state.tilt = Math.round(best * 100) / 100 || 0;
-  $("tilt").value = state.tilt;
-  recompute();
-  toast(`Tilt set to ${state.tilt} px per 100 rows (sharpest lines).`);
-}
-
-/* ---------------- Calibration ---------------- */
-let calFit = null; // { coef: [c0, c1, c2], rms }
-function polyFit(xs, ys, order) {
-  const n = order + 1, A = Array.from({ length: n }, () => new Float64Array(n + 1));
-  for (let i = 0; i < xs.length; i++) {
-    const p = []; for (let k = 0; k < n; k++) p.push(Math.pow(xs[i], k));
-    for (let r = 0; r < n; r++) { for (let c = 0; c < n; c++) A[r][c] += p[r] * p[c]; A[r][n] += p[r] * ys[i]; }
-  }
-  for (let c = 0; c < n; c++) {
-    let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
-    [A[c], A[piv]] = [A[piv], A[c]];
-    for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; }
-  }
-  return A.map((row, i) => row[n] / row[i]);
-}
-function updateCalFit() {
-  const c = state.cal, pts = c.points;
-  calFit = null;
-  if (c.mode !== "points" || !pts.length) return;
-  if (pts.length === 1) { calFit = { coef: [pts[0].nm - c.disp * pts[0].px, c.disp, 0], kind: "1 point: nu-View dispersion, shifted" }; }
-  else {
-    const order = Math.min(c.order, pts.length - 1);
-    // fit on centred pixels for conditioning
-    const x0 = pts.reduce((s, p) => s + p.px, 0) / pts.length;
-    const k = polyFit(pts.map((p) => p.px - x0), pts.map((p) => p.nm), order);
-    const coef = [0, 0, 0];
-    // expand back to raw pixel powers
-    coef[0] = k[0] - k[1] * x0 + (k[2] || 0) * x0 * x0;
-    coef[1] = k[1] - 2 * (k[2] || 0) * x0;
-    coef[2] = k[2] || 0;
-    calFit = { coef, kind: order === 2 ? "quadratic" : "linear" };
-  }
-  let ss = 0; for (const p of pts) { p.res = lamOfPx(p.px) - p.nm; ss += p.res * p.res; }
-  calFit.rms = Math.sqrt(ss / pts.length);
-}
-function lamOfPx(p) {
-  const c = state.cal;
-  if (c.mode === "points" && calFit) return calFit.coef[0] + calFit.coef[1] * p + calFit.coef[2] * p * p;
-  return c.a + c.b * c.reading + c.disp * (p - c.ref);
-}
-function pxOfLam(l) {
-  let p = (l - lamOfPx(0)) / (lamOfPx(1) - lamOfPx(0));
-  for (let i = 0; i < 6; i++) { const d = lamOfPx(p + 0.5) - lamOfPx(p - 0.5); if (!d) break; p -= (lamOfPx(p) - l) / d; }
-  return p;
-}
-
-/* ---------------- Colours ---------------- */
-function wlRGB(w) {
+function wlColor(w) {
   let r = 0, g = 0, b = 0;
-  const ww = Math.min(780, Math.max(380, w));
-  if (ww < 440) { r = -(ww - 440) / 60; b = 1; } else if (ww < 490) { g = (ww - 440) / 50; b = 1; } else if (ww < 510) { g = 1; b = -(ww - 510) / 20; }
-  else if (ww < 580) { r = (ww - 510) / 70; g = 1; } else if (ww < 645) { r = 1; g = -(ww - 645) / 65; } else { r = 1; }
+  if (w >= 380 && w < 440) { r = -(w - 440) / 60; b = 1; }
+  else if (w >= 440 && w < 490) { g = (w - 440) / 50; b = 1; }
+  else if (w >= 490 && w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w >= 510 && w < 580) { r = (w - 510) / 70; g = 1; }
+  else if (w >= 580 && w < 645) { r = 1; g = -(w - 645) / 65; }
+  else if (w >= 645 && w <= 780) { r = 1; }
   let f = 1;
-  if (ww < 420) f = 0.3 + 0.7 * (ww - 380) / 40; else if (ww > 700) f = 0.3 + 0.7 * (780 - ww) / 80;
-  if (w < 380) f *= Math.max(0.35, 1 - (380 - w) / 120);
-  if (w > 780) f = Math.max(0.18, 0.3 - (w - 780) / 1000);
+  if (w < 420) f = 0.3 + 0.7 * (w - 380) / 40; else if (w > 700) f = 0.3 + 0.7 * (780 - w) / 80;
+  if (w < 380 || w > 780) f = 0;
   const c = (v) => Math.round(255 * Math.pow(v * f, 0.8));
   return [c(r), c(g), c(b)];
 }
-
-/* ---------------- Spectrum ---------------- */
-let spec = null; // { px, nm, y, raw }
-function recompute() {
-  if (!state.img) return;
-  state.profile = extract();
-  updateCalFit();
-  buildSpec();
-  renderSide();
-  renderPlot();
-  drawImagePanel();
-}
-function refAt(l) {
-  const r = state.ref; if (!r) return NaN;
-  const a = r.nm; if (l < a[0] || l > a[a.length - 1]) return NaN;
-  let lo = 0, hi = a.length - 1;
-  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (a[m] <= l) lo = m; else hi = m; }
-  const t = (l - a[lo]) / (a[hi] - a[lo] || 1);
-  return r.y[lo] * (1 - t) + r.y[hi] * t;
-}
-function buildSpec() {
-  const p = state.profile, n = p.length;
-  const nm = new Float64Array(n), y = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    nm[i] = lamOfPx(i);
-    let v = p[i];
-    if (state.refDivide && state.ref) { const r = refAt(nm[i]); v = r > 0 ? v / r : NaN; }
-    y[i] = v;
+const bandCache = {};
+function bandImage(axis, reversed) {
+  const key = axis + reversed;
+  if (bandCache[key]) return bandCache[key];
+  const W = 600, cv = document.createElement("canvas"); cv.width = W; cv.height = 1;
+  const ctx = cv.getContext("2d"); const img = ctx.createImageData(W, 1);
+  const lo = axis === "nm" ? 380 : 1e7 / 780, hi = axis === "nm" ? 780 : 1e7 / 380;
+  for (let p = 0; p < W; p++) {
+    const t = (p + 0.5) / W;
+    const v = reversed ? hi - t * (hi - lo) : lo + t * (hi - lo);
+    const wl = axis === "nm" ? v : 1e7 / v;
+    const [r, g, b] = wlColor(wl);
+    img.data.set([r, g, b, 255], p * 4);
   }
-  let mx = -Infinity; for (const v of y) if (v > mx) mx = v;
-  const scale = state.normalize && mx > 0 ? 1 / mx : 1;
-  for (let i = 0; i < n; i++) y[i] *= scale;
-  spec = { nm, y, raw: p, scale };
+  ctx.putImageData(img, 0, 0);
+  return (bandCache[key] = { src: cv.toDataURL(), lo, hi });
 }
 
-/* ---------------- Plot ---------------- */
-const STRIP_PX = 34, AXIS_PX = 54;
-function domains() {
-  const H = gd.clientHeight || 500;
-  const strip = state.showStrip ? STRIP_PX / H : 0;
-  return { strip, mainLo: strip + AXIS_PX / H };
-}
-function fullRange() { const a = spec.nm[0], b = spec.nm[spec.nm.length - 1]; return a < b ? [a, b] : [b, a]; }
-function stripImage(lo, hi) {
-  const W = Math.min(3000, Math.max(200, spec.nm.length)), cv = document.createElement("canvas");
-  cv.width = W; cv.height = 1;
-  const ctx = cv.getContext("2d"), im = ctx.createImageData(W, 1);
-  let mx = 0; for (const v of spec.y) if (v > mx) mx = v;
-  const inc = spec.nm[spec.nm.length - 1] > spec.nm[0];
-  for (let k = 0; k < W; k++) {
-    const l = lo + (hi - lo) * (k + 0.5) / W;
-    const p = pxOfLam(l), i = Math.round(p);
-    const v = i >= 0 && i < spec.y.length && mx > 0 ? Math.max(0, Math.min(1, spec.y[i] / mx)) : 0;
-    const [r, g, b] = wlRGB(l), f = Math.pow(v, 0.8);
-    im.data.set([r * f, g * f, b * f, 255], k * 4);
+function buildFigure(xRange, yRange) {
+  const ink = cssVar("--ink"), muted = cssVar("--muted"), grid = cssVar("--grid"), plotBg = cssVar("--plot-bg"), panel = cssVar("--panel"), line = cssVar("--line");
+  const font = cssVar("--font-ui"), mono = cssVar("--font-mono");
+  const traces = [];
+  const xdec = state.axis === "nm" ? 3 : 2;
+  for (const d of state.datasets) {
+    if (!d.visible) continue;
+    const c = cache.get(d.id);
+    traces.push({
+      type: "scattergl", mode: "lines", x: c.px, y: c.py, name: d.name, meta: d.id,
+      line: { color: d.color, width: state.lineWidth },
+      hovertemplate: `%{x:.${xdec}f}, %{y:.5g}<extra>${esc(d.name)}</extra>`,
+    });
   }
-  ctx.putImageData(im, 0, 0);
-  return cv.toDataURL();
-}
-function buildFigure(xr) {
-  const ink = cssVar("--ink"), muted = cssVar("--muted"), grid = cssVar("--grid"), plotBg = cssVar("--plot-bg"), panel = cssVar("--panel"), line = cssVar("--line"), accent = cssVar("--accent");
-  const U = uf(), { strip, mainLo } = domains();
-  const n = spec.nm.length, X = Array.from(spec.nm, (v) => v * U), traces = [];
-  if (state.colorFill) {
-    const step = Math.max(2, Math.ceil(n / 450));
-    for (let i = 0; i < n - 1; i += step) {
-      const j = Math.min(n - 1, i + step), e = Math.min(n - 1, j + 1), xs = X.slice(i, e + 1), ys = Array.from(spec.y.subarray(i, e + 1));
-      const [r, g, b] = wlRGB(spec.nm[(i + j) >> 1]);
-      traces.push({ type: "scatter", mode: "lines", x: xs, y: ys, fill: "tozeroy", fillcolor: `rgb(${r},${g},${b})`, line: { width: 1, color: `rgb(${r},${g},${b})` }, hoverinfo: "skip", showlegend: false });
+  const annotations = [];
+  for (const r of activeRefs()) {
+    const f = convFn(r.kind, state.axis, state.laser);
+    const xs = [], ys = [], tx = [], ty = [], ht = [];
+    for (const p of r.peaks) {
+      const x = f(p[0]); if (!(x === x)) continue;
+      const h = 0.06 + 0.82 * (p[1] ?? 0.5);
+      xs.push(x, x, null); ys.push(0, h, null);
+      tx.push(x); ty.push(h);
+      const unit = r.kind === "nm" ? "nm" : "cm-1";
+      ht.push(`<b>${esc(r.name)}</b><br>${p[0]} ${unit}${r.kind === "shift" ? " shift" : ""}${p[2] ? " - " + esc(p[2]) : ""}` +
+        (state.axis === "nm" && r.kind !== "nm" ? `<br>= ${x.toFixed(2)} nm` : "") +
+        (state.axis === "cm" && r.kind === "nm" ? `<br>= ${x.toFixed(1)} cm-1` : ""));
+      if (state.refLabels) {
+        annotations.push({
+          x, y: h, xref: "x", yref: "y2", yanchor: "bottom", showarrow: false, textangle: -90,
+          text: p[2] ? `${esc(p[2])}` : `${+x.toFixed(state.axis === "nm" ? 2 : 1)}`,
+          font: { size: 10, color: r.color, family: mono },
+        });
+      }
     }
+    traces.push({ type: "scatter", mode: "lines", x: xs, y: ys, yaxis: "y2", line: { color: r.color, width: 1.3 }, opacity: 0.85, hoverinfo: "skip", showlegend: false, name: r.name });
+    traces.push({ type: "scatter", mode: "markers", x: tx, y: ty, yaxis: "y2", marker: { color: r.color, size: 5, symbol: "diamond" }, name: r.name, text: ht, hovertemplate: "%{text}<extra></extra>", showlegend: true, legendgroup: "ref" + r.id });
   }
-  traces.push({ type: "scatter", mode: "lines", x: X, y: Array.from(spec.y), customdata: Array.from({ length: n }, (_, i) => i), name: state.title || state.img.name,
-    line: { color: state.colorFill ? cssVar("--ink") : accent, width: 1.2 }, hovertemplate: `%{x:.${state.units === "A" ? 1 : 2}f}, %{y:.4g}<br>px %{customdata}<extra></extra>`, showlegend: false });
-  if (state.ref && state.refShow && !state.refDivide) {
-    const ry = Array.from(state.ref.y), rmax = Math.max(...ry.filter(Number.isFinite));
-    const sc = state.normalize && rmax > 0 ? 1 / rmax : 1;
-    traces.push({ type: "scatter", mode: "lines", x: Array.from(state.ref.nm, (v) => v * U), y: ry.map((v) => v * sc), name: "Reference: " + state.ref.name, line: { color: muted, width: 1, dash: "dot" }, hovertemplate: `%{x:.2f}, %{y:.4g}<extra>reference</extra>`, showlegend: false });
-  }
-  const shapes = [], annotations = [];
-  for (const g of LINE_GROUPS) {
-    if (!state.groupsOn.has(g.id)) continue;
-    for (const [l, name] of g.lines) {
-      shapes.push({ type: "line", xref: "x", yref: "paper", x0: l * U, x1: l * U, y0: mainLo, y1: 1, line: { color: muted, width: 1, dash: "dot" }, layer: "above" });
-      annotations.push({ x: l * U, y: 1, xref: "x", yref: "paper", yanchor: "top", xanchor: "left", textangle: -90, showarrow: false, text: `${esc(name)} ${fmtL(l)}`, font: { size: 10, color: ink, family: cssVar("--font-mono") } });
-    }
-  }
-  for (const [k, m] of state.marks.entries()) {
-    const i = Math.round(m.px); if (i < 0 || i >= n) continue;
-    annotations.push({ x: X[i], y: spec.y[i], xref: "x", yref: "y", text: fmtL(spec.nm[i]), showarrow: true, arrowhead: 0, ax: 0, ay: -26, font: { size: 11, color: ink, family: cssVar("--font-mono") }, bgcolor: panel, bordercolor: accent, borderwidth: 1, borderpad: 2, captureevents: true, name: "mark:" + k });
-  }
-  for (const p of state.cal.mode === "points" ? state.cal.points : []) {
-    const xv = lamOfPx(p.px) * U;
-    shapes.push({ type: "line", xref: "x", yref: "paper", x0: xv, x1: xv, y0: mainLo, y1: 1, line: { color: accent, width: 1.5 } });
-  }
+  state.marks.forEach((m, k) => {
+    const d = state.datasets.find((q) => q.id === m.ds);
+    if (!d || !d.visible) return;
+    const c = cache.get(d.id); const x = c.px[m.i], y = c.py[m.i];
+    if (!(x === x)) return;
+    annotations.push({
+      x, y, xref: "x", yref: "y", text: x.toFixed(state.axis === "nm" ? 2 : 1), showarrow: true, arrowhead: 0, arrowcolor: d.color, ax: 0, ay: -28,
+      font: { size: 11, color: ink, family: mono }, bgcolor: panel, bordercolor: d.color, borderwidth: 1, borderpad: 2, captureevents: true, name: "mark:" + k,
+    });
+  });
   const images = [];
-  if (state.showStrip) {
-    const [lo, hi] = fullRange();
-    images.push({ source: stripImage(lo, hi), xref: "x", yref: "paper", x: lo * U, y: 0, sizex: (hi - lo) * U, sizey: strip, xanchor: "left", yanchor: "bottom", sizing: "stretch", layer: "above" });
+  if (state.visBand) {
+    const b = bandImage(state.axis, state.reverse);
+    images.push({ source: b.src, xref: "x", yref: "paper", x: state.reverse ? b.hi : b.lo, y: 0, sizex: b.hi - b.lo, sizey: 0.022, xanchor: "left", yanchor: "bottom", sizing: "stretch", layer: "below", opacity: 0.9 });
   }
-  let ymin = 0, ymax = 0;
-  const [vlo, vhi] = xr;
-  for (let i = 0; i < n; i++) { const l = spec.nm[i]; if (l >= vlo && l <= vhi && Number.isFinite(spec.y[i])) { ymin = Math.min(ymin, spec.y[i]); ymax = Math.max(ymax, spec.y[i]); } }
-  if (ymax <= ymin) ymax = ymin + 1;
+  const xr = state.reverse ? [xRange[1], xRange[0]] : xRange;
   const layout = {
-    paper_bgcolor: panel, plot_bgcolor: plotBg, font: { color: ink, family: cssVar("--font-ui"), size: 12 },
-    margin: { l: 58, r: 16, t: state.title ? 40 : 14, b: 8 },
-    title: state.title ? { text: esc(state.title), font: { size: 18 }, y: 0.985 } : undefined,
-    dragmode: state.tool === "pan" ? "pan" : "zoom", hovermode: "closest", showlegend: false,
-    xaxis: { range: [vlo * U, vhi * U], anchor: "y", title: { text: state.units === "A" ? "Angstroms" : "Wavelength (nm)", standoff: 6 }, gridcolor: grid, linecolor: line, zeroline: false, ticks: "outside", tickcolor: line, tickfont: { family: cssVar("--font-mono") }, showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: muted, spikedash: "dot" },
-    yaxis: { domain: [mainLo, 1], range: [ymin, ymax * 1.06], fixedrange: true, gridcolor: grid, linecolor: line, zeroline: false, tickfont: { family: cssVar("--font-mono") }, title: { text: state.refDivide && state.ref ? "Relative intensity (object / reference)" : "Relative intensity", standoff: 4 } },
-    yaxis2: { domain: [0, Math.max(0.001, strip)], visible: false, fixedrange: true, range: [0, 1] },
-    shapes, annotations, images,
+    paper_bgcolor: panel, plot_bgcolor: plotBg, font: { color: ink, family: font, size: 12 },
+    margin: { l: 64, r: 18, t: 16, b: 50 },
+    dragmode: state.dragmode, hovermode: "closest",
+    hoverlabel: { font: { family: mono, size: 12 } },
+    showlegend: true, legend: { orientation: "h", x: 0, y: 1, yanchor: "bottom", bgcolor: "rgba(0,0,0,0)", font: { size: 11 } },
+    xaxis: { range: xr, title: { text: axisTitle(), standoff: 8 }, gridcolor: grid, linecolor: line, zeroline: false, tickfont: { family: mono }, showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: muted, spikedash: "dot", ticks: "outside", tickcolor: line, autorange: false },
+    yaxis: { range: yRange, title: { text: state.normalize ? "Normalized intensity" : "Intensity", standoff: 6 }, gridcolor: grid, linecolor: line, zeroline: false, tickfont: { family: mono }, fixedrange: state.autoY, exponentformat: "SI", autorange: false },
+    yaxis2: { overlaying: "y", range: [0, 1.02], visible: false, fixedrange: true },
+    annotations, images,
   };
   return { traces, layout };
 }
-const config = { scrollZoom: true, displaylogo: false, responsive: true, doubleClick: false, modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage", "zoomIn2d", "zoomOut2d"] };
-let internal = false, plotReady = false;
-function renderPlot() {
-  if (!spec) return;
-  const xr = state.view || fullRange();
-  const { traces, layout } = buildFigure(xr);
-  internal = true;
-  const p = plotReady ? Plotly.react(gd, traces, layout, config) : Plotly.newPlot(gd, traces, layout, config).then(() => { plotReady = true; attachPlotEvents(); });
-  p.then(() => { internal = false; updateReadout(); });
+
+const config = {
+  scrollZoom: true, displaylogo: false, responsive: true, doubleClick: false,
+  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage"],
+};
+
+let internal = false;
+function currentRanges() {
+  const x = state.view.x || fullXExtent();
+  const y = state.autoY ? yExtent(x) : (state.view.y || yExtent(null));
+  return { x, y };
 }
+
+function renderPlot() {
+  computeAll();
+  const { x, y } = currentRanges();
+  const { traces, layout } = buildFigure(x, y);
+  internal = true;
+  Plotly.react(gd, traces, layout, config).then(() => { internal = false; updateReadout(); });
+}
+function renderAll() { renderDatasets(); renderRefs(); renderPlot(); }
+
+function setXRange(xr) {
+  state.view.x = xr;
+  const upd = { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr };
+  if (state.autoY) upd["yaxis.range"] = yExtent(xr);
+  internal = true;
+  Plotly.relayout(gd, upd).then(() => { internal = false; updateReadout(); });
+}
+
+function updateReadout() {
+  const x = state.view.x || fullXExtent();
+  const u = state.axis === "nm" ? "nm" : "cm-1";
+  $("readout").textContent = `${fmt(x[0])} to ${fmt(x[1])} ${u}  (span ${fmt(x[1] - x[0])})`;
+}
+
 function attachPlotEvents() {
   gd.on("plotly_relayout", (ev) => {
     if (internal) return;
-    if (!Object.keys(ev).some((k) => k.startsWith("xaxis"))) return;
-    if (ev["xaxis.autorange"]) { state.view = null; renderPlot(); drawImagePanel(); return; }
-    const r = gd.layout.xaxis.range.map((v) => +v / uf()).sort((a, b) => a - b);
-    state.view = r;
-    renderPlot(); drawImagePanel();
+    const keys = Object.keys(ev);
+    const xs = keys.some((k) => k.startsWith("xaxis")), ysk = keys.some((k) => k.startsWith("yaxis."));
+    if (!xs && !ysk) return;
+    if (ev["xaxis.autorange"] || ev["yaxis.autorange"]) { resetView(); return; }
+    const xr = gd.layout.xaxis.range.slice().map(Number).sort((a, b) => a - b);
+    state.view.x = xr;
+    if (state.autoY && xs) {
+      internal = true;
+      Plotly.relayout(gd, { "yaxis.range": yExtent(xr) }).then(() => { internal = false; });
+    } else if (!state.autoY) {
+      state.view.y = gd.layout.yaxis.range.slice().map(Number);
+    }
+    updateReadout();
   });
-  gd.on("plotly_hover", (ev) => {
-    const pt = ev.points && ev.points[0]; if (!pt) return;
-    const l = pt.x / uf(), c = state.cal, r = (l - c.a) / c.b;
-    $("readout").textContent = `${fmtL(l)} ${state.units === "A" ? "A" : "nm"}  centred at ${r.toFixed(2)} mm (${readingLD(r)})`;
-  });
-  gd.on("plotly_unhover", updateReadout);
   gd.on("plotly_click", (ev) => {
-    const pt = ev.points && ev.points.find((q) => q.customdata != null); if (!pt) return;
-    if (state.tool !== "mark" && state.tool !== "cal") return;
-    const px = snapPx(pt.customdata);
-    if (state.tool === "mark") { state.marks.push({ px }); renderPlot(); }
-    else beginCalPoint(px);
+    if (!state.markMode || !ev.points?.length) return;
+    const p = ev.points.find((q) => q.data.type === "scattergl");
+    if (!p) return;
+    state.marks.push({ ds: p.data.meta, i: p.pointIndex ?? p.pointNumber });
+    renderPlot();
   });
   gd.on("plotly_clickannotation", (ev) => {
-    const nm = ev.annotation && ev.annotation.name || "";
-    if (nm.startsWith("mark:")) { state.marks.splice(+nm.slice(5), 1); renderPlot(); }
+    const name = ev.annotation?.name || "";
+    if (!name.startsWith("mark:")) return;
+    state.marks.splice(+name.slice(5), 1);
+    renderPlot();
   });
-  gd.addEventListener("dblclick", () => { state.view = null; renderPlot(); drawImagePanel(); });
-  new ResizeObserver(() => { if (plotReady) { Plotly.Plots.resize(gd); renderPlot(); } drawImagePanel(); }).observe(gd);
-}
-function snapPx(i) {
-  const mode = $("snap").value, y = state.profile; if (mode === "none" || !y) return i;
-  const r = 15; let best = i;
-  for (let k = Math.max(1, i - r); k <= Math.min(y.length - 2, i + r); k++) if (mode === "dip" ? y[k] < y[best] : y[k] > y[best]) best = k;
-  // sub-pixel parabola
-  if (best > 0 && best < y.length - 1) { const a = y[best - 1], b = y[best], c = y[best + 1], d = a - 2 * b + c; if (d) return best + 0.5 * (a - c) / d; }
-  return best;
-}
-function updateReadout() {
-  if (!spec) return;
-  const [lo, hi] = state.view || fullRange(), c = state.cal;
-  const u = state.units === "A" ? "A" : "nm";
-  $("readout").textContent = `${fmtL(lo)} to ${fmtL(hi)} ${u}`;
+  gd.addEventListener("dblclick", () => resetView());
+
+  // Middle mouse button drags to pan, whatever the current mode.
+  let mpan = null, raf = 0;
+  const blockMiddle = (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } };
+  gd.addEventListener("mousedown", blockMiddle, true);
+  gd.addEventListener("auxclick", blockMiddle, true);
+  gd.addEventListener("pointerdown", (e) => {
+    if (e.button !== 1 || !gd._fullLayout) return;
+    e.preventDefault(); e.stopPropagation();
+    const fl = gd._fullLayout;
+    mpan = { x0: e.clientX, y0: e.clientY, xr: fl.xaxis.range.map(Number), yr: fl.yaxis.range.map(Number), w: fl._size.w, h: fl._size.h };
+    gd.setPointerCapture(e.pointerId);
+  }, true);
+  gd.addEventListener("pointermove", (e) => {
+    if (!mpan) return;
+    const dx = -(e.clientX - mpan.x0) / mpan.w * (mpan.xr[1] - mpan.xr[0]);
+    const dy = (e.clientY - mpan.y0) / mpan.h * (mpan.yr[1] - mpan.yr[0]);
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const xr = [mpan.xr[0] + dx, mpan.xr[1] + dx].sort((a, b) => a - b);
+      if (state.autoY) { setXRange(xr); return; }
+      state.view.x = xr; state.view.y = [mpan.yr[0] + dy, mpan.yr[1] + dy];
+      internal = true;
+      Plotly.relayout(gd, { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr, "yaxis.range": state.view.y }).then(() => { internal = false; updateReadout(); });
+    });
+  }, true);
+  const endPan = () => { mpan = null; };
+  gd.addEventListener("pointerup", endPan, true);
+  gd.addEventListener("pointercancel", endPan, true);
+
+  // Box zoom: tint the area that will be zoomed into (Plotly's own box shades the outside).
+  let zsel = null;
+  gd.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || state.dragmode !== "zoom" || state.markMode || !gd._fullLayout) return;
+    const r = gd.getBoundingClientRect(), sz = gd._fullLayout._size;
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    if (x < sz.l || x > sz.l + sz.w || y < sz.t || y > sz.t + sz.h) return;
+    zsel = { x0: x, y0: y, sz, el: null };
+  }, true);
+  window.addEventListener("pointermove", (e) => {
+    if (!zsel) return;
+    const r = gd.getBoundingClientRect(), sz = zsel.sz;
+    const x = Math.max(sz.l, Math.min(sz.l + sz.w, e.clientX - r.left)), y = Math.max(sz.t, Math.min(sz.t + sz.h, e.clientY - r.top));
+    const dx = Math.abs(x - zsel.x0), dy = Math.abs(y - zsel.y0);
+    if (dx < 3 && dy < 3) return;
+    if (!zsel.el) { zsel.el = document.createElement("div"); zsel.el.className = "zoomsel"; gd.appendChild(zsel.el); }
+    // mirror Plotly: x-only when Y is locked or the drag is nearly flat, y-only when nearly vertical
+    const xOnly = state.autoY || dy < 8, yOnly = !xOnly && dx < 8;
+    const L = yOnly ? sz.l : Math.min(x, zsel.x0), W = yOnly ? sz.w : dx;
+    const T = xOnly ? sz.t : Math.min(y, zsel.y0), H = xOnly ? sz.h : dy;
+    Object.assign(zsel.el.style, { left: L + "px", top: T + "px", width: W + "px", height: H + "px" });
+  });
+  const endZoom = () => { if (zsel && zsel.el) zsel.el.remove(); zsel = null; };
+  window.addEventListener("pointerup", endZoom);
+  window.addEventListener("pointercancel", endZoom);
 }
 
-/* ---------------- Image panel ---------------- */
-let dispCanvas = null;
-function buildDisplay() {
-  const { w, h, px } = state.img;
-  const sample = []; const step = Math.max(1, Math.floor(px.length / 200000));
-  for (let k = 0; k < px.length; k += step) sample.push(px[k]);
-  sample.sort((a, b) => a - b);
-  const lo = sample[Math.floor(sample.length * 0.005)], hi = sample[Math.floor(sample.length * 0.998)] || lo + 1;
-  dispCanvas = document.createElement("canvas"); dispCanvas.width = w; dispCanvas.height = h;
-  const ctx = dispCanvas.getContext("2d"), im = ctx.createImageData(w, h);
-  for (let k = 0, j = 0; k < px.length; k++, j += 4) {
-    const v = Math.max(0, Math.min(255, 255 * Math.sqrt(Math.max(0, (px[k] - lo) / (hi - lo)))));
-    im.data[j] = im.data[j + 1] = im.data[j + 2] = v; im.data[j + 3] = 255;
+function resetView() { state.view = { x: null, y: null }; renderPlot(); }
+
+/* ---------------- Sidebar rendering ---------------- */
+function renderDatasets() {
+  const el = $("dsList");
+  $("dsCount").textContent = state.datasets.length ? `${state.datasets.length}` : "";
+  if (!state.datasets.length) { el.innerHTML = `<div class="empty">No spectra loaded. Open a file or pick references below.</div>`; return; }
+  el.innerHTML = "";
+  for (const d of state.datasets) {
+    const row = document.createElement("div");
+    row.className = "ds" + (d.example ? " example" : "");
+    row.innerHTML = `
+      <div class="row">
+        <input type="checkbox" class="vis" title="Show / hide" ${d.visible ? "checked" : ""}>
+        <input type="color" class="col" value="${d.color}" title="Trace color">
+        <input type="text" class="name" value="${esc(d.name)}" title="Rename">
+        <button class="icon rm" title="Remove">x</button>
+      </div>
+      <div class="row">
+        <select class="kind" title="X units of this file">
+          <option value="nm">nm</option><option value="wn">cm-1</option><option value="um">um</option>
+        </select>
+        <select class="ymode" title="Y transform. Flip mirrors the trace vertically; T to A converts transmittance (fraction or %) to absorbance; A to %T does the reverse.">
+          <option value="none">Y as is</option><option value="flip">Flip Y</option><option value="t2a">T to A</option><option value="a2t">A to %T</option>
+        </select>
+        <span class="meta" title="${esc(d.info || "")}">${d.example ? '<span class="tag">example</span> ' : ""}${d.x.length.toLocaleString()} pts</span>
+      </div>`;
+    row.querySelector(".kind").value = d.kind;
+    row.querySelector(".ymode").value = d.ymode;
+    row.querySelector(".ymode").onchange = (e) => { d.ymode = e.target.value; applyYMode(d); state.view.y = null; renderPlot(); };
+    row.querySelector(".vis").onchange = (e) => { d.visible = e.target.checked; renderPlot(); };
+    row.querySelector(".col").oninput = (e) => { d.color = e.target.value; renderPlot(); };
+    row.querySelector(".name").onchange = (e) => { d.name = e.target.value || d.name; renderPlot(); };
+    row.querySelector(".rm").onclick = () => {
+      state.datasets = state.datasets.filter((q) => q !== d);
+      state.marks = state.marks.filter((m) => m.ds !== d.id);
+      renderDatasets(); renderPlot();
+    };
+    row.querySelector(".kind").onchange = (e) => { d.kind = e.target.value; state.view = { x: null, y: null }; renderDatasets(); renderPlot(); };
+    el.appendChild(row);
   }
-  ctx.putImageData(im, 0, 0);
-}
-function visiblePxRange() {
-  if (!spec) return [0, state.img ? state.img.w : 1];
-  const [lo, hi] = state.view || fullRange();
-  const a = pxOfLam(lo), b = pxOfLam(hi);
-  return a < b ? [a, b] : [b, a];
-}
-function drawImagePanel() {
-  const cv = $("imgCanvas"); if (!state.img || !dispCanvas) return;
-  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-  // align the image horizontally with the plot area
-  const fl = gd._fullLayout, ml = fl ? fl._size.l : 58, pw = fl ? fl._size.w : W - 74;
-  const [p0, p1] = visiblePxRange(), img = state.img;
-  const sx0 = Math.max(0, p0), sx1 = Math.min(img.w, p1);
-  if (sx1 > sx0) {
-    const dx0 = ml + (sx0 - p0) / (p1 - p0) * pw, dx1 = ml + (sx1 - p0) / (p1 - p0) * pw;
-    ctx.imageSmoothingEnabled = (sx1 - sx0) > (dx1 - dx0);
-    ctx.drawImage(dispCanvas, sx0, 0, sx1 - sx0, img.h, dx0, 0, dx1 - dx0, H);
-  }
-  const yOf = (r) => (r / img.h) * H;
-  const { top, bot } = state.band, accent = "#b48cff";
-  if (state.bgOn) {
-    const gap = Math.max(3, Math.round((bot - top) * 0.08)), bw = state.bgW;
-    ctx.fillStyle = "rgba(255,170,60,0.22)";
-    ctx.fillRect(ml, yOf(top - gap - bw), pw, yOf(bw)); ctx.fillRect(ml, yOf(bot + gap + 1), pw, yOf(bw));
-  }
-  ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
-  for (const r of [top, bot + 1]) { ctx.beginPath(); ctx.moveTo(0, yOf(r)); ctx.lineTo(W, yOf(r)); ctx.stroke(); }
-  ctx.fillStyle = "rgba(180,140,255,0.08)"; ctx.fillRect(0, yOf(top), W, yOf(bot + 1) - yOf(top));
-  $("imgCap").textContent = `${img.name}  columns ${Math.max(0, Math.round(p0))}-${Math.min(img.w, Math.round(p1))}, band rows ${top}-${bot}`;
-}
-function imagePanelEvents() {
-  const cv = $("imgCanvas");
-  let drag = null;
-  const rowAt = (e) => { const r = cv.getBoundingClientRect(); return Math.round((e.clientY - r.top) / r.height * state.img.h); };
-  cv.addEventListener("pointerdown", (e) => {
-    if (!state.img) return;
-    const y = rowAt(e), tol = state.img.h * 0.03, { top, bot } = state.band;
-    if (Math.abs(y - top) < tol) drag = { edge: "top" };
-    else if (Math.abs(y - bot) < tol) drag = { edge: "bot" };
-    else drag = { edge: "new", y0: y };
-    cv.setPointerCapture(e.pointerId);
-  });
-  cv.addEventListener("pointermove", (e) => {
-    if (!drag) return;
-    const y = Math.max(0, Math.min(state.img.h - 1, rowAt(e)));
-    if (drag.edge === "top") state.band.top = Math.min(y, state.band.bot - 1);
-    else if (drag.edge === "bot") state.band.bot = Math.max(y, state.band.top + 1);
-    else state.band = { top: Math.min(drag.y0, y), bot: Math.max(drag.y0, y, Math.min(drag.y0, y) + 1) };
-    syncExtraction(); drawImagePanel();
-  });
-  const end = () => { if (drag) { drag = null; recompute(); } };
-  cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
 }
 
-/* ---------------- Sidebar ---------------- */
-function syncExtraction() { $("bandTop").value = state.band.top; $("bandBot").value = state.band.bot; }
-function allLines() {
-  const seen = new Set(), out = [];
-  for (const g of LINE_GROUPS) for (const [l, n] of g.lines) { const k = n + l; if (!seen.has(k)) { seen.add(k); out.push({ l, n, g: g.name }); } }
-  return out.sort((a, b) => a.l - b.l);
-}
-function beginCalPoint(px) {
-  if (state.cal.mode !== "points") setCalMode("points");
-  state.pending = { px };
-  const est = lamOfPx(px);
-  const opts = allLines().map((o) => ({ ...o, d: Math.abs(o.l - est) })).sort((a, b) => a.d - b.d).slice(0, 25);
-  $("pickLine").innerHTML = opts.map((o, i) => `<option value="${o.l}" ${i === 0 ? "selected" : ""}>${o.l.toFixed(2)} nm  ${esc(o.n)} (${esc(o.g)})</option>`).join("");
-  $("pickNm").value = opts[0].l;
-  $("pickInfo").textContent = `Clicked pixel ${px.toFixed(1)}, currently ${est.toFixed(2)} nm. Which line is it?`;
-  $("pickForm").hidden = false;
-  $("pickForm").scrollIntoView({ block: "nearest" });
-}
-function renderSide() {
-  const c = state.cal;
-  $("readingLD").textContent = `= ${readingLD(c.reading)} on the micrometer`;
-  const t = $("ptsTable");
-  if (!c.points.length) { t.innerHTML = ""; $("fitInfo").textContent = "no points yet"; return; }
-  $("fitInfo").textContent = calFit ? `${calFit.kind}, rms ${calFit.rms.toFixed(3)} nm` : "";
-  t.innerHTML = `<tr><th>px</th><th>nm</th><th>resid.</th><th></th></tr>` +
-    c.points.map((p, i) => `<tr><td>${p.px.toFixed(1)}</td><td>${p.nm.toFixed(2)}</td><td>${(p.res || 0).toFixed(3)}</td><td><button class="small" data-del="${i}" title="Remove">x</button></td></tr>`).join("");
-}
-function setCalMode(m) {
-  state.cal.mode = m;
-  for (const b of $("calModeSeg").children) b.classList.toggle("on", b.dataset.mode === m);
-  $("calNuview").hidden = m !== "nuview"; $("calPoints").hidden = m !== "points";
-  recompute();
-}
-function setTool(t) {
-  state.tool = t;
-  for (const [id, v] of [["tZoom", "zoom"], ["tPan", "pan"], ["tMark", "mark"], ["tCal", "cal"]]) $(id).classList.toggle("on", state.tool === v);
-  if (plotReady) Plotly.relayout(gd, { dragmode: t === "pan" ? "pan" : "zoom" });
-  if (t === "cal") toast("Click a known line in the plot. It snaps to the nearest dip or peak.");
-  if (t === "mark") toast("Click the spectrum to label a wavelength. Click a label to remove it.");
-}
-
-/* ---------------- Reference spectrum ---------------- */
-function fitsToSpectrum(f, name) {
-  const h = f.hdr, n = f.dims[0];
-  const crval = +h.CRVAL1 || 0, cdelt = +(h.CDELT1 || h.CD1_1) || 1, crpix = +(h.CRPIX1 || 1);
-  const unit = String(h.CUNIT1 || "").toLowerCase();
-  const toNm = /nm|nanom/.test(unit) ? 1 : /^m$|meter/.test(unit) && crval < 1e-3 ? 1e9 : (/ang|^a$/.test(unit) || crval > 2000) ? 0.1 : 1;
-  const nm = new Float64Array(n), y = new Float64Array(n);
-  for (let i = 0; i < n; i++) { nm[i] = (crval + (i + 1 - crpix) * cdelt) * toNm; y[i] = f.data[i]; }
-  return { name: h.OBJECT || name, nm, y };
-}
-function csvToSpectrum(text, name) {
-  const xs = [], ys = [];
-  for (const line of text.split(/\r?\n/)) {
-    const t = line.trim().split(/[\s,;]+/).filter(Boolean).map(Number);
-    if (t.length >= 2 && Number.isFinite(t[0]) && Number.isFinite(t[1])) { xs.push(t[0]); ys.push(t[1]); }
+function renderRefs() {
+  const q = $("refSearch").value.trim().toLowerCase();
+  const all = [...REFS, ...state.customRefs.map((r) => ({ ...r, cat: "Custom" }))];
+  const cats = [];
+  for (const r of all) {
+    const hay = (r.name + " " + r.cat + " " + (r.note || "") + " " + r.peaks.map((p) => p[2] || "").join(" ")).toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    let c = cats.find((c) => c.name === r.cat);
+    if (!c) cats.push((c = { name: r.cat, items: [] }));
+    c.items.push(r);
   }
-  if (xs.length < 2) throw new Error("No two-column numeric data found.");
-  const toNm = Math.max(...xs) > 2000 ? 0.1 : 1;
-  const idx = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
-  return { name, nm: Float64Array.from(idx, (i) => xs[i] * toNm), y: Float64Array.from(idx, (i) => ys[i]) };
+  const openNow = new Set([...document.querySelectorAll("#refList details[open]")].map((d) => d.dataset.cat));
+  const el = $("refList"); el.innerHTML = "";
+  if (!cats.length) { el.innerHTML = `<div class="empty">No references match "${esc(q)}".</div>`; return; }
+  for (const c of cats) {
+    const det = document.createElement("details");
+    det.className = "cat"; det.dataset.cat = c.name;
+    const nOn = c.items.filter((r) => state.refsOn.has(r.id)).length;
+    det.open = !!q || openNow.has(c.name) || (!refsRenderedOnce && c.name === "Infrared (absorption)");
+    det.innerHTML = `<summary>${esc(c.name)}<span class="n">${nOn ? nOn + " on / " : ""}${c.items.length}</span></summary>`;
+    for (const r of c.items) {
+      const on = state.refsOn.has(r.id);
+      const lab = document.createElement("label");
+      lab.className = "ref-item";
+      lab.title = (r.note ? r.note + ". " : "") + r.peaks.map((p) => p[0]).join(", ");
+      lab.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}><span class="dot" style="background:${on ? state.refsOn.get(r.id) : "transparent"}"></span>${esc(r.name)}<span class="kind">${r.kind === "nm" ? "nm" : r.kind === "shift" ? "Raman" : "IR"}</span>`;
+      lab.querySelector("input").onchange = (e) => {
+        if (e.target.checked) state.refsOn.set(r.id, REF_COLORS[refColorCursor++ % REF_COLORS.length]);
+        else state.refsOn.delete(r.id);
+        renderRefs(); renderPlot();
+      };
+      if (c.name === "Custom") {
+        const del = document.createElement("button");
+        del.className = "icon del"; del.textContent = "x"; del.title = "Delete custom reference";
+        del.onclick = (e) => {
+          e.preventDefault();
+          state.customRefs = state.customRefs.filter((q) => q.id !== r.id);
+          state.refsOn.delete(r.id); store("spectra.customRefs", state.customRefs);
+          renderRefs(); renderPlot();
+        };
+        lab.appendChild(del);
+      }
+      det.appendChild(lab);
+    }
+    el.appendChild(det);
+  }
+  refsRenderedOnce = true;
 }
-function setReference(r) {
-  state.ref = r;
-  $("refInfo").textContent = r ? `${r.name}: ${r.nm.length.toLocaleString()} points, ${r.nm[0].toFixed(1)} to ${r.nm[r.nm.length - 1].toFixed(1)} nm` : "None loaded.";
-  recompute();
+let refsRenderedOnce = false;
+
+function syncControls() {
+  $("axisSel").value = state.axis;
+  $("normalize").checked = state.normalize;
+  $("clipOn").checked = state.clipOn; $("clipMax").value = state.clipMax;
+  $("offset").value = state.offset; $("offsetOut").textContent = state.offset;
+  $("lineW").value = state.lineWidth; $("lineWOut").textContent = state.lineWidth;
+  $("visBand").checked = state.visBand;
+  $("refLabels").checked = state.refLabels;
+  $("tAutoY").classList.toggle("on", state.autoY);
+  $("tReverse").classList.toggle("on", state.reverse);
+  $("tMark").classList.toggle("on", state.markMode);
+  $("tZoom").classList.toggle("on", state.dragmode === "zoom");
+  $("tPan").classList.toggle("on", state.dragmode === "pan");
 }
 
 /* ---------------- Export ---------------- */
-function saveFile(name, blob) {
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+function saveFile(filename, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-const baseName = () => (state.title || state.img.name).replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_");
-async function exportImage(fmt) {
-  const url = await Plotly.toImage(gd, { format: fmt, width: Math.max(gd.clientWidth, 1000), height: Math.max(gd.clientHeight, 560), scale: fmt === "png" ? 2 : 1 });
-  saveFile(`${baseName()}.${fmt}`, await (await fetch(url)).blob());
-}
-function exportCsv() {
-  const L = ["wavelength_nm,intensity,raw,pixel"];
-  for (let i = 0; i < spec.nm.length; i++) L.push(`${spec.nm[i].toFixed(4)},${spec.y[i]},${spec.raw[i]},${i}`);
-  saveFile(`${baseName()}.csv`, new Blob([L.join("\n") + "\n"], { type: "text/csv" }));
-}
-function exportFits() {
-  const [lo, hi] = fullRange(), n = spec.nm.length, step = (hi - lo) / (n - 1);
-  const data = new Float32Array(n);
-  for (let k = 0; k < n; k++) { const p = pxOfLam(lo + k * step), i = Math.floor(p), t = p - i; data[k] = i >= 0 && i < n - 1 ? spec.y[i] * (1 - t) + spec.y[i + 1] * t : NaN; }
-  const card = (k, v, c = "") => {
-    const val = typeof v === "string" ? `'${v.replace(/'/g, "''").padEnd(8)}'`.padEnd(20) : typeof v === "boolean" ? (v ? "T" : "F").padStart(20) : String(v).padStart(20);
-    return (`${k.padEnd(8)}= ${val}` + (c ? ` / ${c}` : "")).padEnd(80).slice(0, 80);
-  };
-  const cards = [card("SIMPLE", true), card("BITPIX", -32), card("NAXIS", 1), card("NAXIS1", n), card("CRPIX1", 1), card("CRVAL1", +(lo * 10).toFixed(6), "Angstrom"),
-    card("CDELT1", +(step * 10).toPrecision(10), "Angstrom per pixel"), card("CTYPE1", "WAVE"), card("CUNIT1", "Angstrom"), card("OBJECT", (state.title || state.img.name).slice(0, 60)),
-    card("ORIGIN", "nuviewer"), card("BSS_INST", "nu-View II"), "END".padEnd(80)];
-  let hdr = cards.join(""); hdr = hdr.padEnd(Math.ceil(hdr.length / 2880) * 2880);
-  const body = new DataView(new ArrayBuffer(Math.ceil(n * 4 / 2880) * 2880));
-  for (let k = 0; k < n; k++) body.setFloat32(k * 4, data[k]);
-  saveFile(`${baseName()}.fits`, new Blob([hdr, body.buffer], { type: "application/fits" }));
+function stamp() { return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-"); }
+
+async function exportImage(fmt, which) {
+  const w = gd.clientWidth, h = gd.clientHeight;
+  let restore = null;
+  if (which === "full") {
+    restore = { x: state.view.x, y: state.view.y };
+    const xr = fullXExtent();
+    const yr = state.autoY ? yExtent(xr) : yExtent(null);
+    internal = true;
+    await Plotly.relayout(gd, { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr, "yaxis.range": yr });
+  }
+  try {
+    const url = await Plotly.toImage(gd, { format: fmt, width: Math.max(w, 900), height: Math.max(h, 500), scale: fmt === "png" ? 2 : 1 });
+    const blob = await (await fetch(url)).blob();
+    await saveFile(`specspec-${which}-${stamp()}.${fmt}`, blob);
+  } catch (e) {
+    toast("Image export failed: " + e.message, 6000);
+  } finally {
+    if (restore) { internal = false; state.view = restore; renderPlot(); }
+  }
 }
 
-/* ---------------- Wiring ---------------- */
-function bind() {
+function jcampText(d) {
+  const x = d.x, y = d.y, n = x.length;
+  const num = (v) => (Number.isFinite(v) ? +v.toPrecision(10) + "" : "?");
+  const dx = (x[n - 1] - x[0]) / (n - 1);
+  let even = n > 2 && dx !== 0;
+  for (let i = 0; even && i < n; i++) if (Math.abs(x[i] - (x[0] + i * dx)) > Math.abs(dx) * 1e-3) even = false;
+  const xunits = { nm: "NANOMETERS", um: "MICROMETERS", wn: "1/CM", shift: "1/CM" }[d.kind];
+  const dtype = { nm: "UV/VIS SPECTRUM", um: "INFRARED SPECTRUM", wn: "INFRARED SPECTRUM", shift: "RAMAN SPECTRUM" }[d.kind];
+  const yunits = { t2a: "ABSORBANCE", a2t: "TRANSMITTANCE" }[d.ymode] || "ARBITRARY UNITS";
+  const ys = d.ymode === "a2t" ? Array.from(y, (v) => v / 100) : y;
+  const L = [`##TITLE=${d.name}`, "##JCAMP-DX=4.24", `##DATA TYPE=${dtype}`, "##ORIGIN=SpecSpec export", "##OWNER=",
+    ...(d.info ? [`$$ ${d.info}`] : []),
+    `##XUNITS=${xunits}`, `##YUNITS=${yunits}`, "##XFACTOR=1", "##YFACTOR=1",
+    `##FIRSTX=${num(x[0])}`, `##LASTX=${num(x[n - 1])}`, `##NPOINTS=${n}`, `##FIRSTY=${num(ys[0])}`];
+  if (even) {
+    L.push(`##DELTAX=${num(dx)}`, "##XYDATA=(X++(Y..Y))");
+    for (let i = 0; i < n; i += 8) {
+      const row = [num(x[i])];
+      for (let j = i; j < Math.min(n, i + 8); j++) row.push(num(ys[j]));
+      L.push(row.join(" "));
+    }
+  } else {
+    L.push("##XYPOINTS=(XY..XY)");
+    for (let i = 0; i < n; i++) L.push(`${num(x[i])}, ${num(ys[i])}`);
+  }
+  L.push("##END=");
+  return L.join("\n") + "\n";
+}
+async function exportJcamp() {
+  const vis = state.datasets.filter((d) => d.visible);
+  if (!vis.length) { toast("Nothing to export: no visible spectra."); return; }
+  for (const d of vis) {
+    saveFile(`${d.name.replace(/[^\w.-]+/g, "_")}.jdx`, new Blob([jcampText(d)], { type: "chemical/x-jcamp-dx" }));
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  toast(`Exported ${vis.length} JCAMP-DX file${vis.length > 1 ? "s" : ""}.`);
+}
+
+function exportCsv(which) {
+  const vis = state.datasets.filter((d) => d.visible);
+  if (!vis.length) { toast("Nothing to export: no visible spectra."); return; }
+  computeAll();
+  const xr = which === "view" ? (state.view.x || fullXExtent()) : [-Infinity, Infinity];
+  const u = state.axis === "nm" ? "nm" : "cm-1";
+  const cols = vis.map((d) => {
+    const { px } = cache.get(d.id);
+    const s = state.normalize ? 1 / d.ymax : 1;
+    const xs = [], ys = [];
+    for (let i = 0; i < px.length; i++) if (px[i] >= xr[0] && px[i] <= xr[1]) { xs.push(px[i]); ys.push(d.y[i] * s); }
+    return { name: d.name.replace(/"/g, "'"), xs, ys };
+  });
+  const n = Math.max(...cols.map((c) => c.xs.length));
+  const lines = [cols.map((c) => `"${c.name} X (${u})","${c.name} Y"`).join(",")];
+  for (let i = 0; i < n; i++) lines.push(cols.map((c) => (i < c.xs.length ? `${c.xs[i]},${c.ys[i]}` : ",")).join(","));
+  saveFile(`specspec-${which}-${stamp()}.csv`, new Blob([lines.join("\n")], { type: "text/csv" }));
+}
+
+/* ---------------- Sessions ---------------- */
+const SESSION_FORMAT = "spectra-overlay-session";
+
+function saveSession() {
+  const sess = {
+    format: SESSION_FORMAT, version: 1, saved: new Date().toISOString(),
+    settings: {
+      axis: state.axis, laser: state.laser, normalize: state.normalize, offset: state.offset, lineWidth: state.lineWidth,
+      visBand: state.visBand, clipOn: state.clipOn, clipMax: state.clipMax, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels,
+    },
+    view: state.view,
+    datasets: state.datasets.map((d) => ({
+      id: d.id, name: d.name, kind: d.kind, color: d.color, visible: d.visible, laser: d.laser, example: d.example, info: d.info || "",
+      ymode: d.ymode, x: Array.from(d.x), y: Array.from(d.yRaw),
+    })),
+    refsOn: [...state.refsOn.entries()],
+    customRefs: state.customRefs,
+    marks: state.marks,
+  };
+  saveFile(`specspec-session-${stamp()}.json`, new Blob([JSON.stringify(sess)], { type: "application/json" }));
+}
+
+async function loadSession(file) {
+  let sess;
+  try { sess = JSON.parse(await file.text()); } catch (e) { toast(`${file.name}: not valid JSON.`, 6000); return; }
+  if (!sess || sess.format !== SESSION_FORMAT || !Array.isArray(sess.datasets)) {
+    toast(`${file.name}: not a SpecSpec session file.`, 6000); return;
+  }
+  const st = sess.settings || {};
+  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "clipOn", "clipMax", "autoY", "reverse", "refLabels"]) if (k in st) state[k] = st[k];
+  state.datasets = []; colorCursor = 0;
+  const idMap = new Map();
+  for (const d of sess.datasets) {
+    if (!Array.isArray(d.x) || !Array.isArray(d.y) || d.x.length !== d.y.length) continue;
+    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: d.kind === "shift" ? "wn" : KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example, info: String(d.info || "") });
+    if (/^#[0-9a-f]{6}$/i.test(d.color)) ds.color = d.color;
+    ds.visible = d.visible !== false;
+    if (d.laser > 0) ds.laser = +d.laser;
+    if (["flip", "t2a", "a2t"].includes(d.ymode)) { ds.ymode = d.ymode; applyYMode(ds); }
+    idMap.set(d.id, ds.id);
+  }
+  if (Array.isArray(sess.customRefs)) {
+    const have = new Set(state.customRefs.map((r) => r.id));
+    for (const r of sess.customRefs) if (r && r.id && Array.isArray(r.peaks) && !have.has(r.id)) state.customRefs.push(r);
+    store("spectra.customRefs", state.customRefs);
+  }
+  state.refsOn = new Map((sess.refsOn || []).filter((e) => Array.isArray(e) && e.length === 2));
+  refColorCursor = state.refsOn.size;
+  state.marks = (sess.marks || []).filter((m) => idMap.has(m.ds)).map((m) => ({ ds: idMap.get(m.ds), i: m.i }));
+  state.view = sess.view && typeof sess.view === "object" ? { x: sess.view.x || null, y: sess.view.y || null } : { x: null, y: null };
+  state.dragmode = "zoom"; state.markMode = false;
+  syncControls();
+  renderAll();
+  toast(`Loaded session: ${state.datasets.length} spectra, ${state.refsOn.size} references.`);
+}
+
+/* ---------------- Controls ---------------- */
+function bindControls() {
   $("btnOpen").onclick = () => $("fileInput").click();
-  $("fileInput").onchange = (e) => { if (e.target.files[0]) openImageFile(e.target.files[0]); e.target.value = ""; };
-  const drop = $("drop"); let depth = 0;
+  $("btnSaveSession").onclick = saveSession;
+  $("btnLoadSession").onclick = () => $("sessionInput").click();
+  $("sessionInput").onchange = (e) => { if (e.target.files[0]) loadSession(e.target.files[0]); e.target.value = ""; };
+  $("fileInput").onchange = (e) => { importFiles(e.target.files); e.target.value = ""; };
+  const drop = $("drop");
+  let depth = 0;
   window.addEventListener("dragenter", (e) => { if (e.dataTransfer?.types?.includes("Files")) { depth++; drop.classList.add("over"); } });
   window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) drop.classList.remove("over"); });
   window.addEventListener("dragover", (e) => e.preventDefault());
-  window.addEventListener("drop", (e) => { e.preventDefault(); depth = 0; drop.classList.remove("over"); if (e.dataTransfer?.files?.[0]) openImageFile(e.dataTransfer.files[0]); });
+  window.addEventListener("drop", (e) => {
+    e.preventDefault(); depth = 0; drop.classList.remove("over");
+    if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files);
+  });
 
-  $("flipH").onchange = (e) => { state.flipH = e.target.checked; if (state.img) { flipImage(state.img); buildDisplay(); recompute(); } };
-  $("btnAutoBand").onclick = () => { autoBand(); syncExtraction(); recompute(); };
-  $("bandTop").onchange = (e) => { state.band.top = Math.max(0, Math.min(+e.target.value, state.band.bot - 1)); syncExtraction(); recompute(); };
-  $("bandBot").onchange = (e) => { state.band.bot = Math.min(state.img.h - 1, Math.max(+e.target.value, state.band.top + 1)); syncExtraction(); recompute(); };
-  $("bgOn").onchange = (e) => { state.bgOn = e.target.checked; recompute(); };
-  $("bgW").onchange = (e) => { state.bgW = Math.max(2, +e.target.value || 30); recompute(); };
-  $("tilt").onchange = (e) => { state.tilt = +e.target.value || 0; recompute(); };
-  $("btnAutoTilt").onclick = autoTilt;
-  $("smooth").onchange = (e) => { state.smooth = Math.max(0, +e.target.value || 0); recompute(); };
+  $("axisSel").onchange = (e) => { state.axis = e.target.value; state.view = { x: null, y: null }; renderPlot(); };
+  $("normalize").onchange = (e) => { state.normalize = e.target.checked; state.view.y = null; renderPlot(); };
+  $("offset").oninput = (e) => { state.offset = +e.target.value; $("offsetOut").textContent = state.offset; state.view.y = null; renderPlot(); };
+  $("lineW").oninput = (e) => { state.lineWidth = +e.target.value; $("lineWOut").textContent = state.lineWidth; renderPlot(); };
+  $("visBand").onchange = (e) => { state.visBand = e.target.checked; renderPlot(); };
+  $("clipOn").onchange = (e) => { state.clipOn = e.target.checked; state.view.y = null; renderPlot(); };
+  $("clipMax").onchange = (e) => { const v = +e.target.value; if (Number.isFinite(v)) { state.clipMax = v; state.view.y = null; renderPlot(); } };
+  $("refLabels").onchange = (e) => { state.refLabels = e.target.checked; renderPlot(); };
+  $("refSearch").oninput = () => renderRefs();
+  $("refClear").onclick = () => { state.refsOn.clear(); refColorCursor = 0; renderRefs(); renderPlot(); };
 
-  for (const b of $("calModeSeg").children) b.onclick = () => setCalMode(b.dataset.mode);
-  $("reading").oninput = (e) => { const v = +e.target.value; if (Number.isFinite(v)) { state.cal.reading = v; state.view = null; recompute(); } };
-  for (const [id, k] of [["kA", "a"], ["kB", "b"], ["kD", "disp"], ["kP", "ref"]]) $(id).onchange = (e) => { const v = +e.target.value; if (Number.isFinite(v)) { state.cal[k] = v; store("nuv.consts", { a: state.cal.a, b: state.cal.b, disp: state.cal.disp, ref: state.cal.ref }); state.view = null; recompute(); } };
-  $("fitOrder").onchange = (e) => { state.cal.order = +e.target.value; recompute(); };
-  $("pickLine").onchange = (e) => { $("pickNm").value = e.target.value; };
-  $("pickAdd").onclick = () => {
-    const nm = +$("pickNm").value; if (!state.pending || !Number.isFinite(nm)) return;
-    state.cal.points.push({ px: state.pending.px, nm }); state.pending = null; $("pickForm").hidden = true; state.view = null; recompute();
+  $("customForm").onsubmit = (e) => {
+    e.preventDefault();
+    const peaks = $("cPeaks").value.split(/[\s,;]+/).filter(Boolean).map((t) => {
+      const [p, h] = t.split(":"); return [+p, h === undefined ? 0.6 : Math.max(0, Math.min(1, +h))];
+    }).filter((p) => isFinite(p[0]) && isFinite(p[1]));
+    if (!peaks.length) { toast("Enter at least one numeric peak position."); return; }
+    const r = { id: "c-" + Date.now(), name: $("cName").value.trim() || "Custom", kind: $("cKind").value, peaks };
+    state.customRefs.push(r);
+    state.refsOn.set(r.id, REF_COLORS[refColorCursor++ % REF_COLORS.length]);
+    store("spectra.customRefs", state.customRefs);
+    $("cName").value = ""; $("cPeaks").value = "";
+    toast(`Added ${r.name} (${peaks.length} peaks).`);
+    renderRefs(); renderPlot();
   };
-  $("pickCancel").onclick = () => { state.pending = null; $("pickForm").hidden = true; };
-  $("ptsTable").onclick = (e) => { const b = e.target.closest("button[data-del]"); if (b) { state.cal.points.splice(+b.dataset.del, 1); recompute(); } };
 
-  $("title").oninput = (e) => { state.title = e.target.value; renderPlot(); };
-  for (const b of $("unitSeg").children) b.onclick = () => { state.units = b.dataset.u; for (const x of $("unitSeg").children) x.classList.toggle("on", x === b); renderPlot(); };
-  $("normalize").onchange = (e) => { state.normalize = e.target.checked; recompute(); };
-  $("colorFill").onchange = (e) => { state.colorFill = e.target.checked; renderPlot(); };
-  $("showStrip").onchange = (e) => { state.showStrip = e.target.checked; renderPlot(); };
-  $("groups").innerHTML = LINE_GROUPS.map((g) => `<label class="check"><input type="checkbox" data-g="${g.id}" ${state.groupsOn.has(g.id) ? "checked" : ""}> ${esc(g.name)}</label>`).join("");
-  $("groups").onchange = (e) => { const g = e.target.dataset.g; if (!g) return; if (e.target.checked) state.groupsOn.add(g); else state.groupsOn.delete(g); renderPlot(); };
-
-  $("btnRefFromCurrent").onclick = () => {
-    if (!spec) return;
-    const raw = spec.raw, nm = spec.nm, idx = Array.from(nm.keys()).sort((a, b) => nm[a] - nm[b]);
-    setReference({ name: state.title || state.img.name, nm: Float64Array.from(idx, (i) => nm[i]), y: Float64Array.from(idx, (i) => raw[i]) });
-    toast("Stored the current spectrum as the reference.");
+  $("tZoom").onclick = () => { state.dragmode = "zoom"; syncControls(); Plotly.relayout(gd, { dragmode: "zoom" }); };
+  $("tPan").onclick = () => { state.dragmode = "pan"; syncControls(); Plotly.relayout(gd, { dragmode: "pan" }); };
+  $("tReset").onclick = resetView;
+  $("tAutoY").onclick = () => { state.autoY = !state.autoY; state.view.y = null; syncControls(); renderPlot(); };
+  $("tReverse").onclick = () => { state.reverse = !state.reverse; syncControls(); renderPlot(); };
+  $("tMark").onclick = () => {
+    state.markMode = !state.markMode; syncControls();
+    if (state.markMode) toast("Click a trace to label that point. Click a label to remove it.");
   };
-  $("btnRefLoad").onclick = () => $("refInput").click();
-  $("refInput").onchange = async (e) => {
-    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
-    try {
-      const buf = await f.arrayBuffer(), head = String.fromCharCode(...new Uint8Array(buf.slice(0, 9)));
-      if (head === "SIMPLE  =") { const fits = parseFits(buf); if (fits.dims.length !== 1) throw new Error("Reference FITS must be a 1D spectrum."); setReference(fitsToSpectrum(fits, f.name)); }
-      else setReference(csvToSpectrum(new TextDecoder().decode(buf), f.name));
-    } catch (err) { toast(`${f.name}: ${err.message}`, 7000); }
-  };
-  $("btnRefClear").onclick = () => { state.refDivide = false; $("refDivide").checked = false; setReference(null); };
-  $("refShow").onchange = (e) => { state.refShow = e.target.checked; renderPlot(); };
-  $("refDivide").onchange = (e) => { if (!state.ref) { e.target.checked = false; toast("Load or store a reference spectrum first."); return; } state.refDivide = e.target.checked; recompute(); };
-
-  $("tZoom").onclick = () => setTool("zoom");
-  $("tPan").onclick = () => setTool("pan");
-  $("tMark").onclick = () => setTool(state.tool === "mark" ? "zoom" : "mark");
-  $("tCal").onclick = () => setTool(state.tool === "cal" ? "zoom" : "cal");
-  $("tReset").onclick = () => { state.view = null; renderPlot(); drawImagePanel(); };
   $("tClearMarks").onclick = () => { state.marks = []; renderPlot(); };
+
   const menu = $("exportMenu");
   $("tExport").onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; $("tExport").setAttribute("aria-expanded", String(!menu.hidden)); };
-  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) menu.hidden = true; });
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) { menu.hidden = true; $("tExport").setAttribute("aria-expanded", "false"); } });
   menu.onclick = (e) => {
-    const b = e.target.closest("button[data-exp]"); if (!b || !spec) return; menu.hidden = true;
-    const f = b.dataset.exp;
-    if (f === "csv") exportCsv(); else if (f === "fits") exportFits(); else exportImage(f).catch((err) => toast("Export failed: " + err.message));
+    const b = e.target.closest("button[data-exp]"); if (!b) return;
+    menu.hidden = true;
+    const [fmt, which] = b.dataset.exp.split(":");
+    if (fmt === "csv") exportCsv(which); else if (fmt === "jdx") exportJcamp(); else exportImage(fmt, which);
   };
-  imagePanelEvents();
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => renderPlot());
-  new MutationObserver(() => renderPlot()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, select, textarea, dialog") || e.ctrlKey || e.metaKey || e.altKey) return;
+    const xr = state.view.x || fullXExtent();
+    const span = xr[1] - xr[0], mid = (xr[0] + xr[1]) / 2;
+    const dir = state.reverse ? -1 : 1;
+    let nr = null;
+    if (e.key === "ArrowLeft") nr = [xr[0] - dir * span * 0.15, xr[1] - dir * span * 0.15];
+    else if (e.key === "ArrowRight") nr = [xr[0] + dir * span * 0.15, xr[1] + dir * span * 0.15];
+    else if (e.key === "+" || e.key === "=" || e.key === "ArrowUp") nr = [mid - span * 0.35, mid + span * 0.35];
+    else if (e.key === "-" || e.key === "_" || e.key === "ArrowDown") nr = [mid - span * 0.7, mid + span * 0.7];
+    else if (e.key === "0" || e.key === "Home") { e.preventDefault(); resetView(); return; }
+    if (nr) { e.preventDefault(); setXRange(nr); }
+  });
+
+  const rethemed = () => renderPlot();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", rethemed);
+  new MutationObserver(rethemed).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+
+/* ---------------- Example spectrum ---------------- */
+function makeExample() {
+  // Simulated liquid-film IR absorbance spectra (Lorentzian bands plus noise), 25,000 points over 400-4000 cm-1.
+  const sims = [
+    { name: "Example: simulated ethanol IR", ref: "ir-ethanol", bands: [[3330, 0.55, 260], [2974, 0.62, 22], [2928, 0.36, 20], [2880, 0.28, 18], [1450, 0.22, 22], [1380, 0.26, 18], [1088, 0.5, 18], [1045, 0.9, 20], [880, 0.42, 16]] },
+    { name: "Example: simulated isopropanol IR", ref: "ir-ipa", bands: [[3340, 0.55, 260], [2970, 0.8, 24], [2930, 0.3, 18], [1379, 0.36, 16], [1160, 0.42, 16], [1130, 0.52, 16], [950, 0.6, 16], [817, 0.35, 14]] },
+  ];
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const n = 25000;
+  for (const sim of sims) {
+    const x = new Float64Array(n), y = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const v = 4000 - (3600 * i) / (n - 1); x[i] = v;
+      let s = 0.02;
+      for (const [c, a, w] of sim.bands) s += a / (1 + ((v - c) / (w / 2)) ** 2);
+      y[i] = s + (rnd() - 0.5) * 0.006;
+    }
+    addDataset({ name: sim.name, x, y, kind: "wn", example: true });
+    state.refsOn.set(sim.ref, REF_COLORS[refColorCursor++]);
+  }
+  state.axis = "cm";
 }
 
 /* ---------------- Boot ---------------- */
-(async function boot() {
-  Object.assign(state.cal, recall("nuv.consts", {}));
-  for (const [id, k] of [["kA", "a"], ["kB", "b"], ["kD", "disp"], ["kP", "ref"]]) $(id).value = state.cal[k];
-  bind();
-  if (window.NUV_EXAMPLE_FRAME) {
-    const img = await rasterToImage(window.NUV_EXAMPLE_FRAME, "Example frame");
-    img.example = true;
-    state.cal.reading = 7.41; $("reading").value = "7.41";
-    state.title = "Example frame"; $("title").value = state.title;
-    setImage(img);
-  }
-})();
+state.customRefs = recall("spectra.customRefs", []);
+if (!Array.isArray(state.customRefs)) state.customRefs = [];
+makeExample();
+syncControls();
+bindControls();
+renderDatasets(); renderRefs();
+computeAll();
+{
+  const { x, y } = currentRanges();
+  const { traces, layout } = buildFigure(x, y);
+  Plotly.newPlot(gd, traces, layout, config).then(() => { attachPlotEvents(); updateReadout(); });
+}
 </script>
-</body>
 </html>
