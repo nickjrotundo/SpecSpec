@@ -53,6 +53,7 @@ Offsets are bytes from the start of the block, in decimal and in octal (octal ma
 | 148 | 224 | 0 on phase scans, 1.0 on everything else | float | 0 / 1 / 1 |
 | 152 | 230 | Phase correction mode? 2 = phase scan, 1 = uses the .SET, 3 = other | int | 2 / 3 / 1 |
 | 364 | 554 | Phase scan the run used (a phase scan names itself) | text | "SY0:QZ3QU1 .SPC" |
+| 384 | 600 | Notes typed in when setting up the scan, 128 chars, space padded | text | "hello from the other side" |
 
 - Wavenumber of point i = first + i x step (i starts at 0).
 - Min/max amplitude: on single-beam files it's the data's own min and max. On LOG it's 0 to 2, on TRA 0 to 1.
@@ -81,8 +82,6 @@ Offsets are bytes from the start of the block, in decimal and in octal (octal ma
 | 146 | 222 | Instrument readings for the reference? (11 words) | ints | |
 | 452 | 704 | Related files: phase scan, settings (.SET), reference (.REF), 20 chars each | text | "QZ3QU1  QZ3QU1 .SET  SIMPLG000.REF" |
 
-- The phase scan names spell out the optics: GL1KB1 = globar + KBr, QZ3QU1 = quartz lamp + quartz beamsplitter,
-  GL13M2C = globar + 3 um Mylar. Every SIMPLG000 file points back to QZ3QU1.
 - Scans done vs asked for: SIMPLG000.REF asked for 40 and did 39, ATM077011 asked for 200 and did 199.
 - The ranges follow the optics: both KBr files have 450-5000, the Mylar one 125-850, the bolometer 10-370.
 - The two 11-word records: the .SET has an exact copy of the phase scan's, and the REF has the first one only half
@@ -96,4 +95,4 @@ Offsets are bytes from the start of the block, in decimal and in octal (octal ma
 - TRA = transmittance as a plain fraction, 0 to 1. Not x10, not percent.
 - Exactly 8.0 in a LOG file means "too dark to measure", a clip value.
 - .SET: after the header, 128 values that are the phase correction kernel for the run (flat across exactly the
-  requested 4000-12500 range), then 1580 more values (a narrow burst near 5315 cm-1, purpose unknown).
+  requested 4000-12500 range), then 1580 more values for...something (a narrow burst near 5315 cm-1, purpose unknown).
