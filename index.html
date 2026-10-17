@@ -200,6 +200,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
       <kbd>&lt;</kbd><kbd>&gt;</kbd> pan &nbsp; <kbd>+</kbd><kbd>-</kbd> zoom &nbsp; <kbd>0</kbd> reset
     </div>
     <div class="session">
+      <button id="btnTheme" title="Switch between light and dark">Dark</button>
       <button id="btnSaveSession" title="Save loaded spectra, colors, references, marks and view to a .json file">Save session</button>
       <button id="btnLoadSession" title="Restore a saved .json session">Load session</button>
       <input type="file" id="sessionInput" accept=".json,application/json" hidden>
@@ -1385,6 +1386,12 @@ async function loadSession(file) {
 function bindControls() {
   $("btnOpen").onclick = () => $("fileInput").click();
   $("btnSaveSession").onclick = saveSession;
+  $("btnTheme").onclick = () => {
+    const next = isDark() ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store("spectra.theme", next);
+    syncThemeButton();
+  };
   $("btnLoadSession").onclick = () => $("sessionInput").click();
   $("sessionInput").onchange = (e) => { if (e.target.files[0]) loadSession(e.target.files[0]); e.target.value = ""; };
   $("fileInput").onchange = (e) => { importFiles(e.target.files); e.target.value = ""; };
@@ -1487,12 +1494,24 @@ function makeExample() {
   state.axis = "cm";
 }
 
+/* ---------------- Theme ---------------- */
+function isDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function syncThemeButton() { $("btnTheme").textContent = isDark() ? "Light" : "Dark"; }
+{
+  const t = recall("spectra.theme", null);
+  if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+}
+
 /* ---------------- Boot ---------------- */
 state.customRefs = recall("spectra.customRefs", []);
 if (!Array.isArray(state.customRefs)) state.customRefs = [];
 makeExample();
 syncControls();
 bindControls();
+syncThemeButton();
 renderDatasets(); renderRefs();
 computeAll();
 {
