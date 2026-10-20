@@ -196,7 +196,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
   <header class="top">
     <div class="brand"><span class="bar" aria-hidden="true"></span>SpecSpec</div>
     <div class="hint">
-      <kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> or <kbd>middle-drag</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp;
+      <kbd>scroll</kbd> zoom X &nbsp; <kbd>shift+scroll</kbd> or scroll on Y axis: zoom Y &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> or <kbd>middle-drag</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp;
       <kbd>&lt;</kbd><kbd>&gt;</kbd> pan &nbsp; <kbd>+</kbd><kbd>-</kbd> zoom &nbsp; <kbd>0</kbd> reset
     </div>
     <div class="session">
@@ -273,7 +273,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
       <button id="tPan" title="Drag to pan">Pan</button>
       <button id="tReset" title="Show everything (0 or double-click)">Reset view</button>
       <span class="sep"></span>
-      <button id="tAutoY" class="on" title="Y axis follows the visible data while you zoom and pan in X">Auto Y</button>
+      <button id="tAutoY" title="Y axis follows the visible data while you zoom and pan in X">Auto Y</button>
       <button id="tReverse" title="Reverse the X axis (IR convention: high wavenumber on the left)">Reverse X</button>
       <button id="tMark" title="Click on a trace to label the point. Click a label to remove it.">Mark peaks</button>
       <button id="tClearMarks" title="Remove all point labels">Clear marks</button>
@@ -419,7 +419,7 @@ const state = {
   visBand: true,
   clipOn: false,
   clipMax: 3.5,
-  autoY: true,
+  autoY: false,
   reverse: false,
   markMode: false,
   dragmode: "zoom",
@@ -1009,7 +1009,7 @@ function buildFigure(xRange, yRange) {
 }
 
 const config = {
-  scrollZoom: true, displaylogo: false, responsive: true, doubleClick: false,
+  scrollZoom: false, displaylogo: false, responsive: true, doubleClick: false,
   modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage"],
 };
 
@@ -1074,6 +1074,29 @@ function attachPlotEvents() {
     renderPlot();
   });
   gd.addEventListener("dblclick", () => resetView());
+
+  // Scroll wheel: zooms X around the cursor (Y untouched). Shift+scroll, or scrolling over the Y axis, zooms Y.
+  gd.addEventListener("wheel", (e) => {
+    const fl = gd._fullLayout; if (!fl || !e.deltaY) return;
+    const r = gd.getBoundingClientRect(), sz = fl._size;
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    if (mx > sz.l + sz.w || my < sz.t - 10 || my > sz.t + sz.h + 60) return;
+    e.preventDefault();
+    const f = e.deltaY > 0 ? 1.2 : 1 / 1.2;
+    if (e.shiftKey || mx < sz.l) {
+      if (my > sz.t + sz.h) return;
+      const yr = fl.yaxis.range.map(Number), fr = (sz.t + sz.h - my) / sz.h, yc = yr[0] + fr * (yr[1] - yr[0]);
+      const ny = [yc - (yc - yr[0]) * f, yc + (yr[1] - yc) * f];
+      if (state.autoY) { state.autoY = false; syncControls(); toast("Auto Y turned off so Y can be zoomed by itself."); }
+      state.view.y = ny;
+      internal = true;
+      Plotly.relayout(gd, { "yaxis.range": ny, "yaxis.fixedrange": false }).then(() => { internal = false; });
+    } else {
+      if (mx < sz.l) return;
+      const xr = fl.xaxis.range.map(Number), fr = (mx - sz.l) / sz.w, xc = xr[0] + fr * (xr[1] - xr[0]);
+      setXRange([xc - (xc - xr[0]) * f, xc + (xr[1] - xc) * f].sort((a, b) => a - b));
+    }
+  }, { passive: false, capture: true });
 
   // Middle mouse button drags to pan, whatever the current mode.
   let mpan = null, raf = 0;
