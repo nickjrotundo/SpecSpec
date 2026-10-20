@@ -107,6 +107,10 @@ aside.side {
 .ds .row select { min-width: 0; }
 .ds .laser { width: 62px; font-size: 12px; padding: 2px 4px; }
 .ds.example { border-style: dashed; }
+.kv { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 3px 14px; font-size: 12.5px; max-height: 46vh; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
+.kv .k { color: var(--muted); }
+.kv .v { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
+
 .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600; }
 .empty { color: var(--muted); font-size: 12.5px; }
 
@@ -196,7 +200,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
   <header class="top">
     <div class="brand"><span class="bar" aria-hidden="true"></span>SpecSpec</div>
     <div class="hint">
-      <kbd>scroll</kbd> zoom X &nbsp; <kbd>shift+scroll</kbd> or scroll on Y axis: zoom Y &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> or <kbd>middle-drag</kbd> pan &nbsp; <kbd>dbl-click</kbd> reset &nbsp;
+      <kbd>scroll</kbd> zoom X &nbsp; <kbd>shift+scroll</kbd> or scroll on Y axis: zoom Y &nbsp; <kbd>drag</kbd> box zoom &nbsp; <kbd>drag axis</kbd> or <kbd>middle-drag</kbd> pan &nbsp;
       <kbd>&lt;</kbd><kbd>&gt;</kbd> pan &nbsp; <kbd>+</kbd><kbd>-</kbd> zoom &nbsp; <kbd>0</kbd> reset
     </div>
     <div class="session">
@@ -239,8 +243,8 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
         <div class="range-row"><input type="range" id="lineW" min="0.5" max="3" step="0.25" value="1.25"><output id="lineWOut">1.25</output></div>
         <span class="lbl">Extras</span>
         <label class="check"><input type="checkbox" id="visBand" checked> Visible-light color band</label>
-        <span class="lbl">Hide</span>
-        <div class="range-row"><label class="check"><input type="checkbox" id="clipOn"> values above</label><input type="number" id="clipMax" value="3.5" step="0.5" style="width:70px"></div>
+        <span class="lbl">Cap</span>
+        <div class="range-row"><label class="check" title="Values above this are drawn at this value, e.g. the 8.0 clip values in Bomem LOG files"><input type="checkbox" id="clipOn"> Y values at</label><input type="number" id="clipMax" value="3.5" step="0.5" style="width:70px"></div>
       </div>
     </section>
 
@@ -271,7 +275,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
     <div class="toolbar">
       <button id="tZoom" class="on" title="Drag to box-zoom">Zoom</button>
       <button id="tPan" title="Drag to pan">Pan</button>
-      <button id="tReset" title="Show everything (0 or double-click)">Reset view</button>
+      <button id="tReset" title="Show everything (0)">Reset view</button>
       <span class="sep"></span>
       <button id="tAutoY" title="Y axis follows the visible data while you zoom and pan in X">Auto Y</button>
       <button id="tReverse" title="Reverse the X axis (IR convention: high wavenumber on the left)">Reverse X</button>
@@ -322,6 +326,14 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
       <button value="skip" type="submit">Skip file</button>
       <button value="ok" type="submit" class="primary">Import</button>
     </div>
+  </form>
+</dialog>
+
+<dialog id="infoDlg">
+  <form class="dlg" method="dialog">
+    <h3 id="infoTitle"></h3>
+    <div class="kv" id="infoKv"></div>
+    <div class="actions"><button type="submit" class="primary">Close</button></div>
   </form>
 </dialog>
 
@@ -531,6 +543,11 @@ function parseDelimited(text) {
     names,
     preamble: pre.join("\n"),
     rows: cols[0].length,
+    meta: pre.map((l) => {
+      const t = l.replace(/^\s*[#%!]+\s*/, "").trim();
+      const m = t.match(/^([^:=\t]{1,40}?)\s*[:=\t]\s*(.+)$/);
+      return m ? [m[1], m[2]] : ["", t];
+    }).filter((kv) => kv[1]),
   };
 }
 
@@ -575,7 +592,13 @@ function decodeAsdfLine(line) {
 function parseJcamp(text) {
   const lines = text.split(/\r\n|\n|\r/);
   const v = {}; let mode = null; const blocks = []; let pairs = [];
+  const meta = [];
   for (let raw of lines) {
+    const ci = raw.indexOf("$$");
+    if (ci >= 0 && !mode) {
+      const c = raw.slice(ci + 2).trim();
+      if (c) meta.push(["$$", c]);
+    }
     const line = raw.replace(/\$\$.*$/, "");
     const m = line.match(/^\s*##\s*([^=]+)=(.*)$/);
     if (m) {
@@ -585,6 +608,7 @@ function parseJcamp(text) {
       if (key === "XYDATA" && /X\+\+\(Y\.\.Y\)/i.test(m[2])) mode = "xydata";
       else if (key === "XYPOINTS" || key === "PEAKTABLE" || key === "XYDATA") mode = "pairs";
       else if (!(key in v)) v[key] = m[2].trim();
+      if (!mode && key !== "END") meta.push([m[1].trim(), m[2].trim()]);
       continue;
     }
     if (!mode || !line.trim()) continue;
@@ -620,7 +644,7 @@ function parseJcamp(text) {
   return {
     cols: [Float64Array.from(xs), Float64Array.from(ys)],
     names: [v.XUNITS || "X", v.YUNITS || "Y"],
-    preamble: "", rows: xs.length, title: v.TITLE, jcampKind: kind,
+    preamble: "", rows: xs.length, title: v.TITLE, jcampKind: kind, meta,
   };
 }
 
@@ -667,7 +691,35 @@ function parseBomem(buf, fname) {
   const notes = asciiAt(u8, 384, 128);
   const info = [`Bomem DA3 ${ext.toUpperCase()}`.trim(), type, date, notes && `notes "${notes}"`, asciiAt(u8, 120, 8) && `apodization ${asciiAt(u8, 120, 8)}`, hw && `optics ${hw}`, files && `files ${files}`]
     .filter(Boolean).join("; ");
-  return { cols: [x, y], names: ["Wavenumber (cm-1)", type], preamble: "", rows: n,
+  const f = (i) => decF(w(i), w(i + 1)), g = (v) => String(+v.toPrecision(8));
+  const B2 = 256;
+  const meta = [
+    ["Format", `Bomem DA3 ${ext.toUpperCase()}`.trim()],
+    ["Type", `${type} (code ${w(55)})`],
+    ["Date", date],
+    ["Notes in file", notes],
+    ["Apodization", asciiAt(u8, 120, 8)],
+    ["Resolution (cm-1)", g(f(39))],
+    ["Blocks", String(blocks) + (u8.length / 512 > blocks ? ` (file has ${u8.length / 512})` : "")],
+    ["First X (cm-1)", g(first)],
+    ["Last X (cm-1)", g(last)],
+    ["Step (cm-1)", g(dx)],
+    ["Requested range (cm-1)", `${g(d(15))} to ${g(d(19))}`],
+    ["Min amplitude", `${g(f(31))} at point ${w(33)}`],
+    ["Max amplitude", `${g(f(35))} at point ${w(37)}`],
+    ["Scans asked / done", `${w(46)} / ${w(B2 + 69)}`],
+    ["Phase points?", `${w(50)}, ${w(51)}`],
+    ["Phase mode?", String(w(76))],
+    ["Phase scan used", asciiAt(u8, 364, 20).replace(/ +\./g, ".")],
+    ["Optics (detector, beamsplitter, source, filter?)", hw],
+    ["Beamsplitter / source code?", `${w(B2 + 16)} / ${w(B2 + 17)}`],
+    ["Electronics filter? (Hz)", `${g(f(B2 + 38))} to ${g(f(B2 + 40))}`],
+    ["HeNe x 4 (cm-1)", g(f(B2 + 44))],
+    ["Beamsplitter range? (cm-1)", `${g(f(B2 + 46))} to ${g(f(B2 + 48))}`],
+    ["Detector range? (cm-1)", `${g(f(B2 + 50))} to ${g(f(B2 + 52))}`],
+    ["Related files", files],
+  ].filter((kv) => kv[1] !== "");
+  return { cols: [x, y], names: ["Wavenumber (cm-1)", type], preamble: "", rows: n, meta,
     title: fname.replace(/;\d+$/, "").replace(/\.(bin)$/i, ""), jcampKind: "wn", info,
     isSettings: w(55) === 4,
     why: `Bomem DA3 binary: ${n.toLocaleString()} points, ${fmt(first)} to ${fmt(x[n - 1])} cm-1, step ${dx.toPrecision(6)}.` };
@@ -757,6 +809,7 @@ async function importFiles(files) {
     else if (needAsk) choice = await askImport(f.name, parsed, det, list.length - fi - 1);
     else choice = { x: 0, ys: [1], kind: det.kind };
     if (!choice) continue;
+    parsed.source = f.name;
     addFromParsed(base, parsed, choice);
     if (!needAsk) toast(`${base}: ${parsed.rows.toLocaleString()} points, ${KIND_LABEL[choice.kind]}. ${det.why}`, 5000);
   }
@@ -806,7 +859,7 @@ function addFromParsed(base, parsed, choice) {
   }
   for (const yi of choice.ys) {
     const name = choice.ys.length > 1 ? `${base}: ${parsed.names[yi]}` : base;
-    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind, info: parsed.info });
+    addDataset({ name, x: parsed.cols[choice.x], y: parsed.cols[yi], kind: choice.kind, info: parsed.info, meta: parsed.meta, source: parsed.source });
   }
   if (!hadUser) {
     state.axis = choice.kind === "nm" ? "nm" : "cm";
@@ -816,9 +869,9 @@ function addFromParsed(base, parsed, choice) {
   renderAll();
 }
 
-function addDataset({ name, x, y, kind, example = false, info = "" }) {
+function addDataset({ name, x, y, kind, example = false, info = "", meta = [], source = "" }) {
   const ds = {
-    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true, info,
+    id: nextId++, name, x, yRaw: y, ymode: "none", kind, example, visible: true, info, meta, source,
     color: TRACE_COLORS[colorCursor++ % TRACE_COLORS.length],
     laser: state.laser,
   };
@@ -851,12 +904,12 @@ function plotted(ds, visIndex, unit) {
   const f = convFn(ds.kind, state.axis, ds.kind === "shift" ? ds.laser : state.laser);
   const n = ds.x.length;
   const px = new Float64Array(n), py = new Float64Array(n);
-  const hide = state.clipOn ? state.clipMax : Infinity;
-  let ymax = ds.ymax;
-  if (state.clipOn) { ymax = -Infinity; for (const v of ds.y) if (v <= hide && v > ymax) ymax = v; if (!(ymax > 0)) ymax = 1; }
+  const cap = state.clipOn ? state.clipMax : Infinity;
+  let ymax = state.clipOn ? Math.min(ds.ymax, cap) : ds.ymax;
+  if (!(ymax > 0)) ymax = 1;
   const s = state.normalize ? 1 / ymax : 1;
   const off = visIndex * state.offset * unit;
-  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = ds.y[i] > hide ? NaN : ds.y[i] * s + off; }
+  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = Math.min(ds.y[i], cap) * s + off; }
   return { px, py };
 }
 
@@ -1010,7 +1063,8 @@ function buildFigure(xRange, yRange) {
 
 const config = {
   scrollZoom: false, displaylogo: false, responsive: true, doubleClick: false,
-  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toImage"],
+  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "resetScale2d", "toImage"],
+  modeBarButtonsToAdd: [{ name: "resetView", title: "Reset view (0)", icon: Plotly.Icons.home, click: () => resetView() }],
 };
 
 let internal = false;
@@ -1073,7 +1127,7 @@ function attachPlotEvents() {
     state.marks.splice(+name.slice(5), 1);
     renderPlot();
   });
-  gd.addEventListener("dblclick", () => resetView());
+  // gd.on("plotly_doubleclick", () => resetView());
 
   // Scroll wheel: zooms X around the cursor (Y untouched). Shift+scroll, or scrolling over the Y axis, zooms Y.
   gd.addEventListener("wheel", (e) => {
@@ -1170,6 +1224,7 @@ function renderDatasets() {
         <input type="checkbox" class="vis" title="Show / hide" ${d.visible ? "checked" : ""}>
         <input type="color" class="col" value="${d.color}" title="Trace color">
         <input type="text" class="name" value="${esc(d.name)}" title="Rename">
+        <button class="icon info" title="File info">i</button>
         <button class="icon rm" title="Remove">x</button>
       </div>
       <div class="row">
@@ -1187,6 +1242,7 @@ function renderDatasets() {
     row.querySelector(".vis").onchange = (e) => { d.visible = e.target.checked; renderPlot(); };
     row.querySelector(".col").oninput = (e) => { d.color = e.target.value; renderPlot(); };
     row.querySelector(".name").onchange = (e) => { d.name = e.target.value || d.name; renderPlot(); };
+    row.querySelector(".info").onclick = () => showInfo(d);
     row.querySelector(".rm").onclick = () => {
       state.datasets = state.datasets.filter((q) => q !== d);
       state.marks = state.marks.filter((m) => m.ds !== d.id);
@@ -1195,6 +1251,22 @@ function renderDatasets() {
     row.querySelector(".kind").onchange = (e) => { d.kind = e.target.value; state.view = { x: null, y: null }; renderDatasets(); renderPlot(); };
     el.appendChild(row);
   }
+}
+
+function showInfo(d) {
+  const dlg = $("infoDlg");
+  $("infoTitle").textContent = d.name;
+  const lo = Math.min(d.x[0], d.x[d.x.length - 1]), hi = Math.max(d.x[0], d.x[d.x.length - 1]);
+  const u = KIND_LABEL[d.kind] || d.kind;
+  const rows = [
+    ...(d.source ? [["File", d.source]] : []),
+    ["Points", d.x.length.toLocaleString()],
+    ["X range", `${+lo.toPrecision(8)} to ${+hi.toPrecision(8)} (${u})`],
+    ...(d.meta || []),
+  ];
+  $("infoKv").innerHTML = rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`).join("")
+    + ((d.meta || []).length ? "" : `<div class="k"></div><div class="v" style="color:var(--muted)">No header fields in this file.</div>`);
+  dlg.showModal();
 }
 
 function renderRefs() {
@@ -1362,6 +1434,7 @@ function saveSession() {
     view: state.view,
     datasets: state.datasets.map((d) => ({
       id: d.id, name: d.name, kind: d.kind, color: d.color, visible: d.visible, laser: d.laser, example: d.example, info: d.info || "",
+      meta: d.meta || [], source: d.source || "",
       ymode: d.ymode, x: Array.from(d.x), y: Array.from(d.yRaw),
     })),
     refsOn: [...state.refsOn.entries()],
@@ -1383,7 +1456,9 @@ async function loadSession(file) {
   const idMap = new Map();
   for (const d of sess.datasets) {
     if (!Array.isArray(d.x) || !Array.isArray(d.y) || d.x.length !== d.y.length) continue;
-    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: d.kind === "shift" ? "wn" : KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example, info: String(d.info || "") });
+    const ds = addDataset({ name: String(d.name || "Untitled"), x: Float64Array.from(d.x, Number), y: Float64Array.from(d.y, Number), kind: d.kind === "shift" ? "wn" : KIND_LABEL[d.kind] ? d.kind : "nm", example: !!d.example, info: String(d.info || ""),
+      source: String(d.source || ""),
+      meta: Array.isArray(d.meta) ? d.meta.filter((kv) => Array.isArray(kv) && kv.length === 2).map((kv) => kv.map(String)) : [] });
     if (/^#[0-9a-f]{6}$/i.test(d.color)) ds.color = d.color;
     ds.visible = d.visible !== false;
     if (d.laser > 0) ds.laser = +d.laser;
