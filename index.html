@@ -244,7 +244,9 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
         <span class="lbl">Extras</span>
         <label class="check"><input type="checkbox" id="visBand" checked> Visible-light color band</label>
         <span class="lbl">Cap</span>
-        <div class="range-row"><label class="check" title="Values above this are drawn at this value, e.g. the 8.0 clip values in Bomem LOG files"><input type="checkbox" id="clipOn"> Y values at</label><input type="number" id="clipMax" value="3.5" step="0.5" style="width:70px"></div>
+        <label class="check" title="When Y is zoomed, values above the top of the view are drawn along the top edge, like the Bomem display"><input type="checkbox" id="capView"> at top of view</label>
+        <span class="lbl"></span>
+        <div class="range-row"><label class="check" title="Values above this are drawn at this value, e.g. the 8.0 clip values in Bomem LOG files"><input type="checkbox" id="clipOn"> at fixed Y</label><input type="number" id="clipMax" value="3.5" step="0.5" style="width:70px"></div>
       </div>
     </section>
 
@@ -429,6 +431,7 @@ const state = {
   offset: 0,
   lineWidth: 1.25,
   visBand: true,
+  capView: true,
   clipOn: false,
   clipMax: 3.5,
   autoY: false,
@@ -909,7 +912,9 @@ function plotted(ds, visIndex, unit) {
   if (!(ymax > 0)) ymax = 1;
   const s = state.normalize ? 1 / ymax : 1;
   const off = visIndex * state.offset * unit;
-  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = Math.min(ds.y[i], cap) * s + off; }
+  const vy = state.capView && !state.autoY && state.view.y;
+  const top = vy ? Math.max(vy[0], vy[1]) - Math.abs(vy[1] - vy[0]) * 0.003 : Infinity;
+  for (let i = 0; i < n; i++) { px[i] = f(ds.x[i]); py[i] = Math.min(Math.min(ds.y[i], cap) * s + off, top); }
   return { px, py };
 }
 
@@ -1111,6 +1116,7 @@ function attachPlotEvents() {
       Plotly.relayout(gd, { "yaxis.range": yExtent(xr) }).then(() => { internal = false; });
     } else if (!state.autoY) {
       state.view.y = gd.layout.yaxis.range.slice().map(Number);
+      refreshCap();
     }
     updateReadout();
   });
@@ -1144,7 +1150,7 @@ function attachPlotEvents() {
       if (state.autoY) { state.autoY = false; syncControls(); toast("Auto Y turned off so Y can be zoomed by itself."); }
       state.view.y = ny;
       internal = true;
-      Plotly.relayout(gd, { "yaxis.range": ny, "yaxis.fixedrange": false }).then(() => { internal = false; });
+      Plotly.relayout(gd, { "yaxis.range": ny, "yaxis.fixedrange": false }).then(() => { internal = false; refreshCap(); });
     } else {
       if (mx < sz.l) return;
       const xr = fl.xaxis.range.map(Number), fr = (mx - sz.l) / sz.w, xc = xr[0] + fr * (xr[1] - xr[0]);
@@ -1174,7 +1180,7 @@ function attachPlotEvents() {
       if (state.autoY) { setXRange(xr); return; }
       state.view.x = xr; state.view.y = [mpan.yr[0] + dy, mpan.yr[1] + dy];
       internal = true;
-      Plotly.relayout(gd, { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr, "yaxis.range": state.view.y }).then(() => { internal = false; updateReadout(); });
+      Plotly.relayout(gd, { "xaxis.range": state.reverse ? [xr[1], xr[0]] : xr, "yaxis.range": state.view.y }).then(() => { internal = false; updateReadout(); refreshCap(); });
     });
   }, true);
   const endPan = () => { mpan = null; };
@@ -1207,6 +1213,9 @@ function attachPlotEvents() {
   window.addEventListener("pointerup", endZoom);
   window.addEventListener("pointercancel", endZoom);
 }
+
+let capRaf = 0;
+function refreshCap() { if (state.capView) { cancelAnimationFrame(capRaf); capRaf = requestAnimationFrame(renderPlot); } }
 
 function resetView() { state.view = { x: null, y: null }; renderPlot(); }
 
@@ -1322,7 +1331,7 @@ let refsRenderedOnce = false;
 function syncControls() {
   $("axisSel").value = state.axis;
   $("normalize").checked = state.normalize;
-  $("clipOn").checked = state.clipOn; $("clipMax").value = state.clipMax;
+  $("capView").checked = state.capView; $("clipOn").checked = state.clipOn; $("clipMax").value = state.clipMax;
   $("offset").value = state.offset; $("offsetOut").textContent = state.offset;
   $("lineW").value = state.lineWidth; $("lineWOut").textContent = state.lineWidth;
   $("visBand").checked = state.visBand;
@@ -1429,7 +1438,7 @@ function saveSession() {
     format: SESSION_FORMAT, version: 1, saved: new Date().toISOString(),
     settings: {
       axis: state.axis, laser: state.laser, normalize: state.normalize, offset: state.offset, lineWidth: state.lineWidth,
-      visBand: state.visBand, clipOn: state.clipOn, clipMax: state.clipMax, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels,
+      visBand: state.visBand, capView: state.capView, clipOn: state.clipOn, clipMax: state.clipMax, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels,
     },
     view: state.view,
     datasets: state.datasets.map((d) => ({
@@ -1451,7 +1460,7 @@ async function loadSession(file) {
     toast(`${file.name}: not a SpecSpec session file.`, 6000); return;
   }
   const st = sess.settings || {};
-  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "clipOn", "clipMax", "autoY", "reverse", "refLabels"]) if (k in st) state[k] = st[k];
+  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "capView", "clipOn", "clipMax", "autoY", "reverse", "refLabels"]) if (k in st) state[k] = st[k];
   state.datasets = []; colorCursor = 0;
   const idMap = new Map();
   for (const d of sess.datasets) {
@@ -1508,6 +1517,7 @@ function bindControls() {
   $("offset").oninput = (e) => { state.offset = +e.target.value; $("offsetOut").textContent = state.offset; state.view.y = null; renderPlot(); };
   $("lineW").oninput = (e) => { state.lineWidth = +e.target.value; $("lineWOut").textContent = state.lineWidth; renderPlot(); };
   $("visBand").onchange = (e) => { state.visBand = e.target.checked; renderPlot(); };
+  $("capView").onchange = (e) => { state.capView = e.target.checked; renderPlot(); };
   $("clipOn").onchange = (e) => { state.clipOn = e.target.checked; state.view.y = null; renderPlot(); };
   $("clipMax").onchange = (e) => { const v = +e.target.value; if (Number.isFinite(v)) { state.clipMax = v; state.view.y = null; renderPlot(); } };
   $("refLabels").onchange = (e) => { state.refLabels = e.target.checked; renderPlot(); };
