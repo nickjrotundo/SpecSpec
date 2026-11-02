@@ -379,10 +379,23 @@ const REFS = [
     [759.370, 0.7, "A (O2)"], [686.719, 0.6, "B (O2)"], [656.281, 0.8, "C (H-alpha)"], [627.661, 0.4, "a (O2)"], [589.592, 0.8, "D1 (Na)"],
     [588.995, 0.9, "D2 (Na)"], [527.039, 0.5, "E2 (Fe)"], [518.362, 0.6, "b1 (Mg)"], [517.270, 0.5, "b2 (Mg)"], [486.134, 0.7, "F (H-beta)"],
     [430.790, 0.6, "G (Fe/Ca)"], [434.047, 0.5, "G' (H-gamma)"], [396.847, 1, "H (Ca II)"], [393.366, 1, "K (Ca II)"]] },
+  { id: "daylight", cat: "Solar", name: "Daylight (Sun + atmosphere)", kind: "wn",
+    note: "vacuum wavenumbers; visible labels are air nm, near-IR labels vacuum um; heights are a rough visual guide; O2, H2O, CO2 and CH4 are wide bands, the mark is one point in each (O2 A is the band head, deepest dip near 13145); H2O 1.38 and 1.87 um are close to opaque", peaks: [
+    [4260, 0.15, "CO 2.35 um (Sun + atm)"], [4301, 0.5, "CH4 2.3 um band (atm)"], [4616.5, 0.15, "Br-gamma 2.166 um"],
+    [4853, 0.5, "CO2 2.06 um (atm)"], [4978, 0.4, "CO2 2.01 um (atm)"], [5332, 1, "H2O 1.87 um (atm)"],
+    [6005, 0.2, "CH4 1.67 um (atm)"], [6227, 0.3, "CO2 1.61 um (atm)"], [6348, 0.3, "CO2 1.575 um (atm)"],
+    [7246, 1, "H2O 1.38 um (atm)"], [7799.3, 0.3, "Pa-beta 1.282 um"], [7882, 0.4, "O2 1.27 um (atm)"],
+    [8840, 0.7, "H2O 1.13 um (atm)"], [9139.8, 0.25, "Pa-gamma 1.094 um"], [9233, 0.3, "Si I / He I 1.083 um"], [9948.1, 0.2, "Pa-delta 1.005 um"],
+    [10692, 0.8, "H2O 935.0 (atm)"], [11541, 0.35, "Ca II 866.2"], [11704, 0.4, "Ca II 854.2"], [11764, 0.25, "Ca II 849.8"],
+    [12152, 0.5, "H2O 822.7 (atm)"], [13165, 1, "O2 A 759.4 (atm)"], [13914, 0.5, "H2O 718.5 (atm)"], [14558, 0.6, "O2 B 686.7 (atm)"],
+    [15233, 0.5, "H-alpha (C) 656.3"], [15928, 0.15, "O2 a 627.7 (atm)"], [16956, 0.4, "Na D1 589.6"], [16973, 0.5, "Na D2 589.0"],
+    [18969, 0.3, "Fe (E) 527.0"], [19286, 0.4, "Mg b1 518.4"], [19327, 0.4, "Mg b2 517.3"], [19347, 0.3, "Mg b4 516.7"],
+    [20565, 0.5, "H-beta (F) 486.1"], [23033, 0.4, "H-gamma 434.0"], [23207, 0.5, "G band 430.8"], [23652, 0.4, "Ca g 422.7"],
+    [24373, 0.3, "H-delta 410.2"], [25192, 0.9, "Ca H 396.8"], [25414, 1, "Ca K 393.4"]] },
 
   // Lasers
   { id: "lasers", cat: "Lasers", name: "Common laser lines", kind: "nm", note: "nominal wavelengths", peaks: [
-    [405, 1, "405 diode"], [457.9, 1, "457.9 Ar+"], [488.0, 1, "488.0 Ar+"], [514.5, 1, "514.5 Ar+"], [532.0, 1, "532 Nd:YAG x2"], [632.8, 1, "632.8 HeNe"],
+    [405, 1, "405 diode"], [457.9, 1, "457.9 Ar+"], [488.0, 1, "488.0 Ar+"], [514.5, 1, "514.5 Ar+"], [532.0, 1, "532 Nd:YAG x2"], [632.816, 1, "632.8 HeNe"],
     [785, 1, "785 diode"], [830, 1, "830 diode"], [1064, 1, "1064 Nd:YAG"]] },
 
   // Near-IR and visible absorption (Weyer & Lo, "Spectra-Structure Correlations in the Near-infrared",
@@ -461,21 +474,28 @@ function toast(msg, ms = 3500) {
 }
 
 /* ---------------- Unit conversion ---------------- */
-function convFn(kind, axis, laser) {
+// The nm axis is air wavelength (what grating spectrometers and line tables use); cm-1 is vacuum wavenumber (what an FTIR measures).
+// Refractive index of standard air, Edlen 1966; below 185 nm (vacuum UV) wavelengths are already vacuum.
+function nAir(nm) {
+  if (!(nm >= 185)) return 1;
+  const s2 = (1e3 / nm) ** 2;
+  return 1 + 1e-8 * (8342.54 + 2406147 / (130 - s2) + 15998 / (38.9 - s2));
+}
+function convFn(kind, axis, laser, nmIsAir = true) {
   const L = 1e7 / laser;
   if (axis === "nm") {
     if (kind === "nm") return (x) => x;
     if (kind === "um") return (x) => x * 1000;
-    if (kind === "wn") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "wn") return (x) => { if (!(x > 0)) return NaN; const v = 1e7 / x; return v / nAir(v); };
     if (kind === "shift") return (x) => { const a = L - x; return a > 0 ? 1e7 / a : NaN; };
   } else {
-    if (kind === "nm") return (x) => (x > 0 ? 1e7 / x : NaN);
+    if (kind === "nm") return (x) => (x > 0 ? 1e7 / (x * (nmIsAir ? nAir(x) : 1)) : NaN);
     if (kind === "um") return (x) => (x > 0 ? 1e4 / x : NaN);
     return (x) => x;
   }
 }
 function axisTitle() {
-  if (state.axis === "nm") return "Wavelength (nm)";
+  if (state.axis === "nm") return "Wavelength in air (nm)";
   const kinds = new Set(state.datasets.filter((d) => d.visible).map((d) => d.kind));
   if (kinds.size === 1 && kinds.has("wn")) return "Wavenumber (cm<sup>-1</sup>)";
   return "Wavenumber (cm<sup>-1</sup>)";
@@ -939,6 +959,7 @@ function applyYMode(ds) {
 }
 
 /* ---------------- Plot building ---------------- */
+function refConv(r) { return convFn(r.kind, state.axis, state.laser, !/vacuum/i.test(r.note || "")); }
 function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
 function plotted(ds, visIndex, unit) {
@@ -973,7 +994,7 @@ function fullXExtent() {
   }
   if (lo === Infinity) {
     for (const r of activeRefs()) {
-      const f = convFn(r.kind, state.axis, state.laser);
+      const f = refConv(r);
       for (const p of r.peaks) { const v = f(p[0]); if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }
     }
     if (lo !== Infinity) { const pad = Math.max((hi - lo) * 0.08, state.axis === "nm" ? 10 : 50); return [lo - pad, hi + pad]; }
@@ -1052,7 +1073,7 @@ function buildFigure(xRange, yRange) {
   }
   const annotations = [];
   for (const r of activeRefs()) {
-    const f = convFn(r.kind, state.axis, state.laser);
+    const f = refConv(r);
     const xs = [], ys = [], tx = [], ty = [], ht = [];
     for (const p of r.peaks) {
       const x = f(p[0]); if (!(x === x)) continue;
