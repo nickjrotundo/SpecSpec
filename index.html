@@ -256,6 +256,7 @@ dialog::backdrop { background: rgba(5, 10, 14, 0.5); }
         <input type="text" id="refSearch" placeholder="Search: ethanol, Hg, balmer...">
       </div>
       <label class="check" style="font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="refLabels" checked> Show peak labels</label>
+      <label class="check" style="font-size:12.5px;margin-bottom:6px" title="Draw every reference line full height with its label along the top, instead of stick heights that hint at relative strength"><input type="checkbox" id="refEven" checked> Full-height lines, labels on top</label>
       <div id="refList"></div>
       <details class="cat" id="customDetails">
         <summary>Add custom reference</summary>
@@ -453,6 +454,7 @@ const state = {
   dragmode: "zoom",
   refsOn: new Map(),     // id -> color
   refLabels: true,
+  refEven: true,
   customRefs: [],
   marks: [],             // {ds, i}
   view: { x: null, y: null },
@@ -1077,7 +1079,7 @@ function buildFigure(xRange, yRange) {
     const xs = [], ys = [], tx = [], ty = [], ht = [];
     for (const p of r.peaks) {
       const x = f(p[0]); if (!(x === x)) continue;
-      const h = 0.06 + 0.82 * (p[1] ?? 0.5);
+      const h = state.refEven ? 0.995 : 0.06 + 0.82 * (p[1] ?? 0.5);
       xs.push(x, x, null); ys.push(0, h, null);
       tx.push(x); ty.push(h);
       const unit = r.kind === "nm" ? "nm" : "cm-1";
@@ -1086,13 +1088,14 @@ function buildFigure(xRange, yRange) {
         (state.axis === "cm" && r.kind === "nm" ? `<br>= ${x.toFixed(1)} cm-1` : ""));
       if (state.refLabels) {
         annotations.push({
-          x, y: h, xref: "x", yref: "y2", yanchor: "bottom", showarrow: false, textangle: -90,
+          x, y: h, xref: "x", yref: "y2", yanchor: state.refEven ? "top" : "bottom", showarrow: false, textangle: -90,
+          ...(state.refEven ? { bgcolor: plotBg } : {}),
           text: p[2] ? `${esc(p[2])}` : `${+x.toFixed(state.axis === "nm" ? 2 : 1)}`,
           font: { size: 10, color: r.color, family: mono },
         });
       }
     }
-    traces.push({ type: "scatter", mode: "lines", x: xs, y: ys, yaxis: "y2", line: { color: r.color, width: 1.3 }, opacity: 0.85, hoverinfo: "skip", showlegend: false, name: r.name });
+    traces.push({ type: "scatter", mode: "lines", x: xs, y: ys, yaxis: "y2", line: { color: r.color, width: state.refEven ? 1 : 1.3 }, opacity: state.refEven ? 0.5 : 0.85, hoverinfo: "skip", showlegend: false, name: r.name });
     traces.push({ type: "scatter", mode: "markers", x: tx, y: ty, yaxis: "y2", marker: { color: r.color, size: 5, symbol: "diamond" }, name: r.name, text: ht, hovertemplate: "%{text}<extra></extra>", showlegend: true, legendgroup: "ref" + r.id });
   }
   state.marks.forEach((m, k) => {
@@ -1394,7 +1397,7 @@ function syncControls() {
   $("offset").value = state.offset; $("offsetOut").textContent = state.offset;
   $("lineW").value = state.lineWidth; $("lineWOut").textContent = state.lineWidth;
   $("visBand").checked = state.visBand;
-  $("refLabels").checked = state.refLabels;
+  $("refLabels").checked = state.refLabels; $("refEven").checked = state.refEven;
   $("tAutoY").classList.toggle("on", state.autoY);
   $("tReverse").classList.toggle("on", state.reverse);
   $("tMark").classList.toggle("on", state.markMode);
@@ -1497,7 +1500,7 @@ function saveSession() {
     format: SESSION_FORMAT, version: 1, saved: new Date().toISOString(),
     settings: {
       axis: state.axis, laser: state.laser, normalize: state.normalize, offset: state.offset, lineWidth: state.lineWidth,
-      visBand: state.visBand, capView: state.capView, clipOn: state.clipOn, clipMax: state.clipMax, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels,
+      visBand: state.visBand, capView: state.capView, clipOn: state.clipOn, clipMax: state.clipMax, autoY: state.autoY, reverse: state.reverse, refLabels: state.refLabels, refEven: state.refEven,
     },
     view: state.view,
     datasets: state.datasets.map((d) => ({
@@ -1519,7 +1522,7 @@ async function loadSession(file) {
     toast(`${file.name}: not a SpecSpec session file.`, 6000); return;
   }
   const st = sess.settings || {};
-  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "capView", "clipOn", "clipMax", "autoY", "reverse", "refLabels"]) if (k in st) state[k] = st[k];
+  for (const k of ["axis", "laser", "normalize", "offset", "lineWidth", "visBand", "capView", "clipOn", "clipMax", "autoY", "reverse", "refLabels", "refEven"]) if (k in st) state[k] = st[k];
   state.datasets = []; colorCursor = 0;
   const idMap = new Map();
   for (const d of sess.datasets) {
@@ -1580,6 +1583,7 @@ function bindControls() {
   $("clipOn").onchange = (e) => { state.clipOn = e.target.checked; state.view.y = null; renderPlot(); };
   $("clipMax").onchange = (e) => { const v = +e.target.value; if (Number.isFinite(v)) { state.clipMax = v; state.view.y = null; renderPlot(); } };
   $("refLabels").onchange = (e) => { state.refLabels = e.target.checked; renderPlot(); };
+  $("refEven").onchange = (e) => { state.refEven = e.target.checked; renderPlot(); };
   $("refSearch").oninput = () => renderRefs();
   $("refClear").onclick = () => { state.refsOn.clear(); refColorCursor = 0; renderRefs(); renderPlot(); };
 
@@ -1675,7 +1679,7 @@ function syncThemeButton() { $("btnTheme").textContent = isDark() ? "Light" : "D
 /* ---------------- Boot ---------------- */
 state.customRefs = recall("spectra.customRefs", []);
 if (!Array.isArray(state.customRefs)) state.customRefs = [];
-makeExample();
+// makeExample();
 syncControls();
 bindControls();
 syncThemeButton();
