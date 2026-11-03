@@ -1,5 +1,17 @@
-This isn't actually a readme, sorry. 
+## SpecSpec
+for inspecting spectra
 
+This was spun out of an unpublished* personal project for my own Sivo nu-View II spectrometer, which is a barely-documented but great little fiber-fed monochromator intended for use with telescopes. It has a spectrum viewer built into it, and that's the basis for this, with modifications to make it work with filed from the Bomem DA3/PDP-11 file formats, and allow them to work with many other formats for overlay and other fun purposes. 
+
+It should load a lot of the common ones, and some uncommon ones, so if in doubt just try it. If it can't exactly auto-detect (especially with a csv) it will just ask what the format is like. 
+
+Otherwise, hopefully things are pretty self explanatory. The one requirement is plotly, which you can stick in a /vendor folder if you want to run truly offline. Otherwise, it just needs to pull it once and should cache it for as long as your browser of choice does that sort of thing. 
+Or, you can click the link over there in the About section, or [here](https://nickjrotundo.github.io/SpecSpec/), and run it as a github page. All opened files are processed/stored on your machine, this is entirely frontend. 
+
+*Unpublished because I don't think more than a handful of people have one...but if you do, and you want to automate readings, and you have an RPi and 3D printer handy, let me know :)
+
+-----
+The following is here because it's the whole reason I spun this out and published this.
 # Bomem DA3 .SPC / .LOG header cheat sheet
 
 Offsets are bytes from the start of the block, in decimal and in octal (octal matches the DMP dumps).
