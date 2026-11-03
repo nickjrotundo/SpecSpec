@@ -132,6 +132,10 @@ details.cat[open] summary::before { content: "-"; }
 details.cat summary .n { margin-left: auto; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
 .ref-item { display: flex; align-items: center; gap: 7px; padding: 3px 0 3px 16px; font-size: 13px; }
 .ref-item .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1px solid var(--line); }
+.ref-item input[type="color"].dot { width: 14px; height: 14px; margin: 0 -2px; border: 1px solid var(--line); cursor: pointer; }
+.ref-item input[type="color"].dot::-webkit-color-swatch-wrapper { padding: 0; }
+.ref-item input[type="color"].dot::-webkit-color-swatch { border: none; border-radius: 50%; }
+.ref-item input[type="color"].dot::-moz-color-swatch { border: none; border-radius: 50%; }
 .ref-item .kind { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
 .ref-item .del { margin-left: 4px; }
 .ref-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
@@ -380,19 +384,20 @@ const REFS = [
     [759.370, 0.7, "A (O2)"], [686.719, 0.6, "B (O2)"], [656.281, 0.8, "C (H-alpha)"], [627.661, 0.4, "a (O2)"], [589.592, 0.8, "D1 (Na)"],
     [588.995, 0.9, "D2 (Na)"], [527.039, 0.5, "E2 (Fe)"], [518.362, 0.6, "b1 (Mg)"], [517.270, 0.5, "b2 (Mg)"], [486.134, 0.7, "F (H-beta)"],
     [430.790, 0.6, "G (Fe/Ca)"], [434.047, 0.5, "G' (H-gamma)"], [396.847, 1, "H (Ca II)"], [393.366, 1, "K (Ca II)"]] },
-  { id: "daylight", cat: "Solar", name: "Daylight (Sun + atmosphere)", kind: "wn",
-    note: "vacuum wavenumbers; visible labels are air nm, near-IR labels vacuum um; heights are a rough visual guide; O2, H2O, CO2 and CH4 are wide bands, the mark is one point in each (O2 A is the band head, deepest dip near 13145); H2O 1.38 and 1.87 um are close to opaque", peaks: [
-    [4260, 0.15, "CO 2.35 um (Sun + atm)"], [4301, 0.5, "CH4 2.3 um band (atm)"], [4616.5, 0.15, "Br-gamma 2.166 um"],
-    [4853, 0.5, "CO2 2.06 um (atm)"], [4978, 0.4, "CO2 2.01 um (atm)"], [5332, 1, "H2O 1.87 um (atm)"],
-    [6005, 0.2, "CH4 1.67 um (atm)"], [6227, 0.3, "CO2 1.61 um (atm)"], [6348, 0.3, "CO2 1.575 um (atm)"],
-    [7246, 1, "H2O 1.38 um (atm)"], [7799.3, 0.3, "Pa-beta 1.282 um"], [7882, 0.4, "O2 1.27 um (atm)"],
-    [8840, 0.7, "H2O 1.13 um (atm)"], [9139.8, 0.25, "Pa-gamma 1.094 um"], [9233, 0.3, "Si I / He I 1.083 um"], [9948.1, 0.2, "Pa-delta 1.005 um"],
-    [10692, 0.8, "H2O 935.0 (atm)"], [11541, 0.35, "Ca II 866.2"], [11704, 0.4, "Ca II 854.2"], [11764, 0.25, "Ca II 849.8"],
-    [12152, 0.5, "H2O 822.7 (atm)"], [13165, 1, "O2 A 759.4 (atm)"], [13914, 0.5, "H2O 718.5 (atm)"], [14558, 0.6, "O2 B 686.7 (atm)"],
-    [15233, 0.5, "H-alpha (C) 656.3"], [15928, 0.15, "O2 a 627.7 (atm)"], [16956, 0.4, "Na D1 589.6"], [16973, 0.5, "Na D2 589.0"],
+  { id: "daylight-sun", cat: "Solar", name: "Daylight: Sun (solar lines)", kind: "wn", color: "#d9822b",
+    note: "vacuum wavenumbers; visible labels are air nm, near-IR labels vacuum um; heights are a rough visual guide; Si I / He I are two lines 3 cm-1 apart", peaks: [
+    [4260, 0.15, "CO 2.35 um (Sun + atm)"], [4616.5, 0.15, "Br-gamma 2.166 um"], [7799.3, 0.3, "Pa-beta 1.282 um"], [9139.8, 0.25, "Pa-gamma 1.094 um"],
+    [9233, 0.3, "Si I / He I 1.083 um"], [9948.1, 0.2, "Pa-delta 1.005 um"], [11541, 0.35, "Ca II 866.2"], [11704, 0.4, "Ca II 854.2"],
+    [11764, 0.25, "Ca II 849.8"], [15233, 0.5, "H-alpha (C) 656.3"], [16956, 0.4, "Na D1 589.6"], [16973, 0.5, "Na D2 589.0"],
     [18969, 0.3, "Fe (E) 527.0"], [19286, 0.4, "Mg b1 518.4"], [19327, 0.4, "Mg b2 517.3"], [19347, 0.3, "Mg b4 516.7"],
     [20565, 0.5, "H-beta (F) 486.1"], [23033, 0.4, "H-gamma 434.0"], [23207, 0.5, "G band 430.8"], [23652, 0.4, "Ca g 422.7"],
     [24373, 0.3, "H-delta 410.2"], [25192, 0.9, "Ca H 396.8"], [25414, 1, "Ca K 393.4"]] },
+  { id: "daylight-atm", cat: "Solar", name: "Daylight: atmosphere (O2, H2O, CO2, CH4)", kind: "wn", color: "#3a80b3",
+    note: "vacuum wavenumbers; visible labels are air nm, near-IR labels vacuum um; heights are a rough visual guide; these are wide bands, the mark is one point in each (O2 A is the band head, deepest dip near 13145); H2O 1.38 and 1.87 um are close to opaque", peaks: [
+    [4301, 0.5, "CH4 2.3 um band (atm)"], [4853, 0.5, "CO2 2.06 um (atm)"], [4978, 0.4, "CO2 2.01 um (atm)"], [5332, 1, "H2O 1.87 um (atm)"],
+    [6005, 0.2, "CH4 1.67 um (atm)"], [6227, 0.3, "CO2 1.61 um (atm)"], [6348, 0.3, "CO2 1.575 um (atm)"], [7246, 1, "H2O 1.38 um (atm)"],
+    [7882, 0.4, "O2 1.27 um (atm)"], [8840, 0.7, "H2O 1.13 um (atm)"], [10692, 0.8, "H2O 935.0 (atm)"], [12152, 0.5, "H2O 822.7 (atm)"],
+    [13165, 1, "O2 A 759.4 (atm)"], [13914, 0.5, "H2O 718.5 (atm)"], [14558, 0.6, "O2 B 686.7 (atm)"], [15928, 0.15, "O2 a 627.7 (atm)"]] },
 
   // Lasers
   { id: "lasers", cat: "Lasers", name: "Common laser lines", kind: "nm", note: "nominal wavelengths", peaks: [
@@ -433,6 +438,8 @@ const REFS = [
 ];
 
 const TRACE_COLORS = ["#2563eb", "#dc4a26", "#15936b", "#c2347a", "#c98a07", "#7c4ddb", "#0e98a8", "#6b7a2a", "#9a5b2e", "#4b6fa8"];
+// a reference's color when switched on: the one last picked for it, else its own default, else the next in the cycle
+function refColorFor(r) { return state.refColorPrefs[r.id] || r.color || REF_COLORS[refColorCursor++ % REF_COLORS.length]; }
 const REF_COLORS = ["#a1662c", "#5466c4", "#278f80", "#b4466c", "#6d7d2c", "#8452ad", "#3a80b3", "#b05a26", "#5f7a90", "#9b4f9b"];
 const KIND_LABEL = { nm: "nm", um: "um", wn: "cm-1", shift: "cm-1" };
 
@@ -455,6 +462,7 @@ const state = {
   refsOn: new Map(),     // id -> color
   refLabels: true,
   refEven: true,
+  refColorPrefs: {},     // id -> color last picked for that reference
   customRefs: [],
   marks: [],             // {ds, i}
   view: { x: null, y: null },
@@ -1091,7 +1099,7 @@ function buildFigure(xRange, yRange) {
           x, y: h, xref: "x", yref: "y2", yanchor: state.refEven ? "top" : "bottom", showarrow: false, textangle: -90,
           ...(state.refEven ? { bgcolor: plotBg } : {}),
           text: p[2] ? `${esc(p[2])}` : `${+x.toFixed(state.axis === "nm" ? 2 : 1)}`,
-          font: { size: 10, color: r.color, family: mono },
+          font: { size: 12, color: r.color, family: mono },
         });
       }
     }
@@ -1365,9 +1373,15 @@ function renderRefs() {
       const lab = document.createElement("label");
       lab.className = "ref-item";
       lab.title = (r.note ? r.note + ". " : "") + r.peaks.map((p) => p[0]).join(", ");
-      lab.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}><span class="dot" style="background:${on ? state.refsOn.get(r.id) : "transparent"}"></span>${esc(r.name)}<span class="kind">${r.kind === "nm" ? "nm" : r.kind === "shift" ? "Raman" : "IR"}</span>`;
+      lab.innerHTML = `<input type="checkbox" ${on ? "checked" : ""}>${on ? `<input type="color" class="dot" value="${state.refsOn.get(r.id)}" title="Line color">` : '<span class="dot"></span>'}${esc(r.name)}<span class="kind">${r.kind === "nm" ? "nm" : r.kind === "shift" ? "Raman" : "IR"}</span>`;
+      const pick = lab.querySelector('input[type="color"]');
+      if (pick) pick.oninput = (e) => {
+        state.refsOn.set(r.id, e.target.value);
+        state.refColorPrefs[r.id] = e.target.value; store("spectra.refColors", state.refColorPrefs);
+        renderPlot();
+      };
       lab.querySelector("input").onchange = (e) => {
-        if (e.target.checked) state.refsOn.set(r.id, REF_COLORS[refColorCursor++ % REF_COLORS.length]);
+        if (e.target.checked) state.refsOn.set(r.id, refColorFor(r));
         else state.refsOn.delete(r.id);
         renderRefs(); renderPlot();
       };
@@ -1677,9 +1691,11 @@ function syncThemeButton() { $("btnTheme").textContent = isDark() ? "Light" : "D
 }
 
 /* ---------------- Boot ---------------- */
+state.refColorPrefs = recall("spectra.refColors", {});
+if (!state.refColorPrefs || typeof state.refColorPrefs !== "object") state.refColorPrefs = {};
 state.customRefs = recall("spectra.customRefs", []);
 if (!Array.isArray(state.customRefs)) state.customRefs = [];
-// makeExample();
+// makeExample(); // uncomment to load the simulated examples on startup...if for some reason needed
 syncControls();
 bindControls();
 syncThemeButton();
